@@ -79,6 +79,9 @@
             background: var(--bg);
             padding-bottom: 1.5rem; /* Creates a clean gap above the cards when scrolling */
             z-index: 99;          /* Just beneath the title layer */
+            
+            /* --- ADD THIS LINE TO FIX MOBILE TYPING --- */
+            pointer-events: all;
         }
 
         input, select { padding: .6rem 1rem; border-radius: 8px; border: 1px solid #334155; background: var(--card); color: var(--text); font-size: 1rem; transition: border-color 0.2s; }
