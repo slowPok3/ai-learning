@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Roadmap — 3D Vector Space</title>
+<style>
+    /* Full-screen dark "space" background */
+    html, body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: radial-gradient(ellipse at center, #0a0e27 0%, #02040f 100%);
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        color: #fff;
+    }
+    #info {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        z-index: 10;
+        background: rgba(10, 14, 39, 0.75);
+        padding: 14px 18px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.12);
+        backdrop-filter: blur(8px);
+        max-width: 260px;
+    }
+    #info h1 { font-size: 18px; margin: 0 0 8px; }
+    #info p  { font-size: 12px; margin: 4px 0; opacity: 0.85; }
+    .legend { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; }
+    .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+    .c-completed { background: #caffbf; box-shadow: 0 0 8px #28a745; }
+    .c-next      { background: #d4dd80; box-shadow: 0 0 10px #ffc107; }
+    .c-pending   { background: #f8f9fa; box-shadow: 0 0 6px #6c757d; }
+
+    /* Tooltip that follows the cursor */
+    #tooltip {
+        position: absolute;
+        pointer-events: none;
+        background: rgba(0,0,0,0.85);
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 13px;
+        display: none;
+        z-index: 20;
+        white-space: nowrap;
+    }
+    #hint {
+        position: absolute;
+        bottom: 15px;
+        right: 15px;
+        z-index: 10;
+        font-size: 11px;
+        opacity: 0.6;
+        background: rgba(10,14,39,0.6);
+        padding: 8px 12px;
+        border-radius: 8px;
+    }
+</style>
+</head>
+<body>
+
+<!-- Info / Legend panel -->
+<div id="info">
+    <h1>🌌 AI Roadmap Vector Space</h1>
+    <p>Concepts float and cluster by semantic connection — just like a real vector database.</p>
+    <div class="legend"><span class="dot c-completed"></span> ✅ Completed</div>
+    <div class="legend"><span class="dot c-next"></span> 📍 You Are Here</div>
+    <div class="legend"><span class="dot c-pending"></span> ⏳ Pending</div>
+</div>
+
+<div id="tooltip"></div>
+<div id="hint">🖱️ Drag to rotate • Scroll to zoom • Right-click to pan</div>
+
+<!-- Three.js + OrbitControls from CDN (works offline once cached) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+// ----------------------------------------------------------------------
+// 1. GRAPH DATA — translated directly from your Mermaid chart
+// ----------------------------------------------------------------------
+const STATUS = {
+    completed: { color: 0xcaffbf, glow: 0x28a745, size: 6 },
+    nextStop:  { color: 0xd4dd80, glow: 0xffc107, size: 8 },
+    pending:   { color: 0xf8f9fa, glow: 0x6c757d, size: 6 }
+};
+
+// Each node: id, display label, status
+const nodes = [
+    { id: 'ML',      label: 'Machine Learning',        status: 'pending'   },
+    { id: 'NN',      label: 'Neural Networks',         status: 'pending'   },
+    { id: 'HW',      label: 'GPUs & Hardware',         status: 'pending'   },
+    { id: 'Train',   label: 'Training Models',         status: 'completed' },
+    { id: 'Tokens',  label: 'Tokens & Embeddings',     status: 'pending'   },
+    { id: 'Trans',   label: 'Transformers',            status: 'completed' },
+    { id: 'LLM',     label: 'Large Language Models',   status: 'completed' },
+    { id: 'Context', label: 'Context Windows',         status: 'completed' },
+    { id: 'Agent',   label: 'Agents',                  status: 'pending'   },
+    { id: 'Tools',   label: 'Tools & APIs',            status: 'pending'   },
+    { id: 'MCP',     label: 'MCP (Context Protocol)',  status: 'pending'   },
+    { id: 'VDB',     label: 'Vector Databases',        status: 'completed' },
+    { id: 'RAG',     label: 'RAG',                     status: 'completed' },
+    { id: 'Prompt',  label: 'Prompt Engineering',      status: 'pending'   },
+    { id: 'KG',      label: 'Knowledge Graphs 📍',     status: 'nextStop'  }
+];
+
+// Edges — the "semantic gravity" links from your Mermaid (-.-)
+const links = [
+    ['ML','NN'], ['NN','HW'], ['HW','Train'],
+    ['Tokens','Trans'], ['Trans','LLM'], ['LLM','Context'], ['Train','LLM'],
+    ['Context','RAG'], ['RAG','VDB'], ['VDB','Tokens'], ['Context','Prompt'],
+    ['Agent','Tools'], ['Tools','MCP'], ['Agent','KG'], ['KG','VDB']
+];
+
+// ----------------------------------------------------------------------
+// 2. SCENE SETUP
+// ----------------------------------------------------------------------
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
+camera.position.set(0, 0, 220);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+
+// Orbit controls (rotate / zoom / pan)
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.autoRotate = true;          // gentle ambient rotation
+controls.autoRotateSpeed = 0.4;
+
+// Lighting
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const point = new THREE.PointLight(0xffffff, 1.2);
+point.position.set(100, 100, 100);
+scene.add(point);
+
+// Background starfield for "vector space" feel
+(function addStars() {
+    const starGeo = new THREE.BufferGeometry();
+    const verts = [];
+    for (let i = 0; i < 1500; i++) {
+        verts.push(
+            (Math.random()-0.5) * 1600,
+            (Math.random()-0.5) * 1600,
+            (Math.random()-0.5) * 1600
+        );
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    const stars = new THREE.Points(starGeo,
+        new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.5 }));
+    scene.add(stars);
+})();
+
+// ----------------------------------------------------------------------
+// 3. CREATE NODES (glowing spheres) with initial 3D positions
+// ----------------------------------------------------------------------
+const nodeMap = {};       // id -> { mesh, pos, vel }
+const nodeMeshes = [];    // for raycasting
+
+nodes.forEach((n) => {
+    const cfg = STATUS[n.status];
+
+    // Core sphere
+    const geo = new THREE.SphereGeometry(cfg.size, 32, 32);
+    const mat = new THREE.MeshPhongMaterial({
+        color: cfg.color,
+        emissive: cfg.glow,
+        emissiveIntensity: 0.5,
+        shininess: 80
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+
+    // Outer glow halo (slightly bigger, transparent)
+    const haloGeo = new THREE.SphereGeometry(cfg.size * 1.7, 24, 24);
+    const haloMat = new THREE.MeshBasicMaterial({
+        color: cfg.glow, transparent: true, opacity: 0.18
+    });
+    mesh.add(new THREE.Mesh(haloGeo, haloMat));
+
+    // Random starting position in a sphere
+    const pos = new THREE.Vector3(
+        (Math.random()-0.5) * 160,
+        (Math.random()-0.5) * 160,
+        (Math.random()-0.5) * 160
+    );
+    mesh.position.copy(pos);
+
+    mesh.userData = { label: n.label, status: n.status, isNext: n.status === 'nextStop' };
+    scene.add(mesh);
+
+    nodeMap[n.id] = { mesh, pos, vel: new THREE.Vector3() };
+    nodeMeshes.push(mesh);
+
+    // Text label sprite floating above the node
+    const sprite = makeTextSprite(n.label);
+    sprite.position.set(0, cfg.size + 6, 0);
+    mesh.add(sprite);
+});
+
+// Helper: create a text label as a sprite (always faces camera)
+function makeTextSprite(text) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const fontSize = 38;
+    ctx.font = `bold ${fontSize}px Segoe UI, sans-serif`;
+    const w = ctx.measureText(text).width;
+    canvas.width = w + 30;
+    canvas.height = fontSize + 18;
+    // redraw (canvas resets after resize)
+    ctx.font = `bold ${fontSize}px Segoe UI, sans-serif`;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundRect(ctx, 0, 0, canvas.width, canvas.height, 12);
+    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 15, canvas.height/2);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+    sprite.scale.set(canvas.width/8, canvas.height/8, 1);
+    return sprite;
+}
+function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+    ctx.fill();
+}
+
+// ----------------------------------------------------------------------
+// 4. CREATE EDGES (lines that update each frame)
+// ----------------------------------------------------------------------
+const edgeObjs = [];
+links.forEach(([a, b]) => {
+    const mat = new THREE.LineBasicMaterial({
+        color: 0x4a90d9, transparent: true, opacity: 0.35
+    });
+    const geo = new THREE.BufferGeometry().setFromPoints([
+        nodeMap[a].pos.clone(), nodeMap[b].pos.clone()
+    ]);
+    const line = new THREE.Line(geo, mat);
+    scene.add(line);
+    edgeObjs.push({ line, a, b });
+});
+
+// ----------------------------------------------------------------------
+// 5. SIMPLE 3D FORCE-DIRECTED LAYOUT (so nodes cluster by connection)
+// ----------------------------------------------------------------------
+function simulateForces() {
+    const REPULSION = 9000;   // nodes push each other apart
+    const SPRING    = 0.012;  // connected nodes pull together
+    const REST_LEN  = 55;
+    const CENTER    = 0.002;  // gentle pull toward origin
+    const DAMP      = 0.85;
+
+    // Repulsion between all pairs
+    const ids = Object.keys(nodeMap);
+    for (let i = 0; i < ids.length; i++) {
+        const ni = nodeMap[ids[i]];
+        for (let j = i+1; j < ids.length; j++) {
+            const nj = nodeMap[ids[j]];
+            const d = new THREE.Vector3().subVectors(ni.pos, nj.pos);
+            let dist = d.length() || 0.1;
+            const force = REPULSION / (dist * dist);
+            d.normalize().multiplyScalar(force);
+            ni.vel.add(d);
+            nj.vel.sub(d);
+        }
+    }
+    // Spring attraction along edges
+    links.forEach(([a, b]) => {
+        const na = nodeMap[a], nb = nodeMap[b];
+        const d = new THREE.Vector3().subVectors(nb.pos, na.pos);
+        const dist = d.length() || 0.1;
+        const force = (dist - REST_LEN) * SPRING;
+        d.normalize().multiplyScalar(force);
+        na.vel.add(d);
+        nb.vel.sub(d);
+    });
+    // Center gravity + integrate
+    ids.forEach((id) => {
+        const n = nodeMap[id];
+        n.vel.add(n.pos.clone().multiplyScalar(-CENTER));
+        n.vel.multiplyScalar(DAMP);
+        n.pos.add(n.vel);
+        n.mesh.position.copy(n.pos);
+    });
+}
+
+// ----------------------------------------------------------------------
+// 6. INTERACTION — hover tooltips
+// ----------------------------------------------------------------------
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+
+window.addEventListener('mousemove', (e) => {
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(nodeMeshes);
+    if (hits.length) {
+        const ud = hits[0].object.userData;
+        const icon = ud.status === 'completed' ? '✅'
+                   : ud.status === 'nextStop'  ? '📍' : '⏳';
+        tooltip.innerHTML = `${icon} ${ud.label}`;
+        tooltip.style.left = (e.clientX + 14) + 'px';
+        tooltip.style.top  = (e.clientY + 14) + 'px';
+        tooltip.style.display = 'block';
+        document.body.style.cursor = 'pointer';
+    } else {
+        tooltip.style.display = 'none';
+        document.body.style.cursor = 'default';
+    }
+});
+
+// ----------------------------------------------------------------------
+// 7. ANIMATION LOOP
+// ----------------------------------------------------------------------
+let frame = 0;
+function animate() {
+    requestAnimationFrame(animate);
+    frame++;
+
+    // Run layout simulation for the first ~400 frames, then settle
+    if (frame < 400) simulateForces();
+
+    // Update edge geometry to follow nodes
+    edgeObjs.forEach(({ line, a, b }) => {
+        const positions = line.geometry.attributes.position.array;
+        const pa = nodeMap[a].pos, pb = nodeMap[b].pos;
+        positions[0] = pa.x; positions[1] = pa.y; positions[2] = pa.z;
+        positions[3] = pb.x; positions[4] = pb.y; positions[5] = pb.z;
+        line.geometry.attributes.position.needsUpdate = true;
+    });
+
+    // Pulse the "You Are Here" node
+    nodeMeshes.forEach((m) => {
+        if (m.userData.isNext) {
+            const s = 1 + Math.sin(frame * 0.08) * 0.18;
+            m.scale.set(s, s, s);
+        }
+    });
+
+    controls.update();
+    renderer.render(scene, camera);
+}
+animate();
+
+// ----------------------------------------------------------------------
+// 8. RESPONSIVE RESIZE
+// ----------------------------------------------------------------------
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
