@@ -14,8 +14,12 @@
             --bg: #0f172a; --card: #1e293b; --accent: #38bdf8;
             --text: #e2e8f0; --muted: #94a3b8;
         }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+        /* body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; } */
         
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+        /* Allow views with long cards or visual lists to scroll independently on mobile */
+        .view { overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
+
         /* Slide Fade Animations */
         .view { 
             position: absolute; inset: 0; width: 100%; height: calc(100% - 60px); 
@@ -92,6 +96,42 @@
         .nav-dot { width: 10px; height: 10px; border-radius: 5px; background: #475569; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .nav-dot:hover { background: #94a3b8; }
         .nav-dot.active { width: 30px; background: #38bdf8; }
+
+        /* --- Mobile Responsive Rules --- */
+        @media (max-width: 768px) {
+            /* Shrink large titles so they fit on one line */
+            .page-header h1 { font-size: 1.4rem; }
+            .page-header p { font-size: 0.85rem; padding: 0 10px; }
+            
+            /* Reposition absolute headers over canvas elements to maximize visual space */
+            .absolute-header { padding-top: 1rem; }
+
+            /* Adjust padding for Card views so they don't hit the screen edge */
+            #view-cards, #view-visual { padding: 0 1rem 2rem 1rem; }
+
+            /* Make search and filters stack vertically instead of stretching horizontally */
+            .controls { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+            input { min-width: 100%; box-sizing: border-box; }
+            select { width: 100%; }
+
+            /* Dynamically adjust layouts into simpler single columns */
+            .grid, .visual-grid { 
+                grid-template-columns: 1fr !important; 
+                gap: 12px; 
+            }
+
+            /* Compress stats display bar */
+            .stats-bar { gap: 15px; padding: 12px; margin-bottom: 15px; }
+            .stat-num { font-size: 1.3rem; }
+
+            /* Shrink modal overlay container sizes */
+            .modal { padding: 1.5rem; width: 85%; }
+            
+            /* Space out bottom navigation items for easier finger-tapping */
+            #bottom-nav { gap: 10px; }
+            .nav-btn { padding: 5px 8px; font-size: 18px; }
+        }
+
     </style>
 </head>
 <body>
@@ -564,7 +604,18 @@
 
         const container = document.getElementById('mindmap-container');
         const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
-        const options = { physics: { barnesHut: { gravitationalConstant: -3000, centralGravity: 0.3 } }, layout: { randomSeed: 2 }, interaction: { hover: true } };
+        // const options = { physics: { barnesHut: { gravitationalConstant: -3000, centralGravity: 0.3 } }, layout: { randomSeed: 2 }, interaction: { hover: true } }; 
+
+        const options = { 
+            physics: { barnesHut: { gravitationalConstant: -3000, centralGravity: 0.3 } }, 
+            layout: { randomSeed: 2 }, 
+            interaction: { 
+                hover: false, // Disabling hover states improves touch responsiveness on mobile
+                zoomView: true,
+                dragView: true
+            } 
+        };
+
         networkInstance = new vis.Network(container, data, options);
         
         networkInstance.on('click', function(params) {
