@@ -63,7 +63,23 @@
         
         /* Learning Cards */
         #view-cards { overflow-y: auto; padding: 0 2rem 2rem 2rem; box-sizing: border-box; background: var(--bg); height: calc(100% - 60px); }
-        .controls { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; margin-bottom: 2rem; }
+        /* .controls { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; margin-bottom: 2rem; } */
+
+        .controls { 
+            display: flex; 
+            gap: 1rem; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            margin-bottom: 2rem; 
+            
+            /* --- ADD THESE LINES TO STICK SEARCH/FILTERS --- */
+            position: sticky;
+            top: 5.5rem;          /* Sits cleanly right under the sticky page-header text */
+            background: var(--bg);
+            padding-bottom: 1rem; /* Creates a clean gap above the cards when scrolling */
+            z-index: 99;          /* Just beneath the title layer */
+        }
+
         input, select { padding: .6rem 1rem; border-radius: 8px; border: 1px solid #334155; background: var(--card); color: var(--text); font-size: 1rem; transition: border-color 0.2s; }
         input:focus, select:focus { border-color: var(--accent); outline: none; }
         input { min-width: 280px; }
