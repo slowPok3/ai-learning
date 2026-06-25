@@ -38,14 +38,19 @@
             text-align: center; 
             padding-top: 2rem; 
             padding-bottom: 1rem; 
-            pointer-events: none; 
-            
+                        
             /* --- ADD THESE LINES TO MAKE IT STICKY --- */
             position: sticky;
             top: 0;
             background: var(--bg); /* Matches the dark background color */
             z-index: 100;          /* Keeps it layered above scrolling cards */
-            pointer-events: all;   /* Allows interaction with anything inside headers if needed */
+            pointer-events: none;   /* Allows interaction with anything inside headers if needed */
+             
+        }
+
+        /* --- ADD THIS NEW RULE: Re-enable touch specifically for any links/buttons inside headers if needed --- */
+        .page-header h1, .page-header p {
+            pointer-events: auto;
         }
 
         .page-header h1 { color: var(--accent); font-size: 2rem; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
@@ -78,8 +83,8 @@
             top: 5.5rem;          /* Sits cleanly right under the sticky page-header text */
             background: var(--bg);
             padding-bottom: 1.5rem; /* Creates a clean gap above the cards when scrolling */
-            z-index: 99;          /* Just beneath the title layer */
-            
+
+            z-index: 101;            
             /* --- ADD THIS LINE TO FIX MOBILE TYPING --- */
             pointer-events: all;
         }
