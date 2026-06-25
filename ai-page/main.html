@@ -76,7 +76,7 @@
             position: sticky;
             top: 5.5rem;          /* Sits cleanly right under the sticky page-header text */
             background: var(--bg);
-            padding-bottom: 1rem; /* Creates a clean gap above the cards when scrolling */
+            padding-bottom: 1.5rem; /* Creates a clean gap above the cards when scrolling */
             z-index: 99;          /* Just beneath the title layer */
         }
 
@@ -132,7 +132,17 @@
         /* --- Mobile Responsive Rules --- */
         @media (max-width: 768px) {
             /* Shrink large titles so they fit on one line */
+            
+            /* .page-header h1 { font-size: 1.4rem; } */
+
             .page-header h1 { font-size: 1.4rem; }
+    
+            /* Adjust the sticky threshold for mobile screens since the title is shorter */
+            .controls { 
+                position: sticky;
+                top: 4.2rem; 
+            }
+
             .page-header p { font-size: 0.85rem; padding: 0 10px; }
             
             /* Reposition absolute headers over canvas elements to maximize visual space */
