@@ -532,6 +532,21 @@
             }
         });
 
+        // ADD THIS BLOCK RIGHT HERE FOR MOBILE TOUCH SUPPORT
+        container.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                // Translate mobile touch coordinates into the format Three.js expects
+                mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.touches[0].clientY / (window.innerHeight - 60)) * 2 + 1;
+                
+                raycaster.setFromCamera(mouse, camera);
+                const hits = raycaster.intersectObjects(nodeMeshes);
+                if(hits.length && hits[0].object.userData.type === 'subject') {
+                    openModal(hits[0].object.userData.fullObj, hits[0].object.userData.color);
+                }
+            }
+        }, { passive: true });
+
         let time = 0;
         function animate() {
             requestAnimationFrame(animate);
