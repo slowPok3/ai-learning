@@ -1,4 +1,4 @@
-// curriculum_data.js
+// course-curriculum.js
 
 // This file contains your curriculum in an easy-to-update Markdown format.
 // Because browsers block loading standard .md files directly from your computer,
