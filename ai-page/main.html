@@ -138,7 +138,42 @@
         .nav-dot:hover { background: #94a3b8; }
         .nav-dot.active { width: 30px; background: #38bdf8; }
 
-        /* --- Mobile Responsive Rules --- */
+        
+        /* Search Wrapper for absolute positioning */
+        .search-wrapper {
+            position: relative;
+            display: inline-block;
+            min-width: 300px;
+        }
+
+        /* Make sure the input stretches nicely inside the wrapper */
+        .search-wrapper input {
+            width: 100%;
+            padding-right: 35px; /* Leave space for the X button */
+            box-sizing: border-box;
+        }
+
+        /* The custom X button style */
+        #custom-clear-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: var(--muted);
+            cursor: pointer;
+            display: none; /* Hidden by default until you type */
+            user-select: none;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            z-index: 105; /* Ensures it sits above everything */
+        }
+
+
+        #custom-clear-btn:hover {
+            color: var(--text);
+        }
+
         @media (max-width: 768px) {
             /* Shrink large titles so they fit on one line */
             
@@ -181,6 +216,10 @@
             /* Space out bottom navigation items for easier finger-tapping */
             #bottom-nav { gap: 10px; }
             .nav-btn { padding: 5px 8px; font-size: 18px; }
+
+            .search-wrapper { min-width: 100%; }
+
+
         }
 
         /* Force the native clear button ('X') to show up on mobile WebKit browsers */
@@ -240,7 +279,12 @@
         </div>
         <div class="controls">
             <!-- <input type="text" id="search" placeholder="🔍 Search subjects or topics..."> -->
-            <input type="search" id="search" placeholder="🔍 Search subjects or topics..." oninput="filterCards()">
+            <!-- <input type="search" id="search" placeholder="🔍 Search subjects or topics..." oninput="filterCards()"> -->
+
+            <div class="search-wrapper">
+                <input type="text" id="search-input" placeholder="Search subjects..." oninput="filterCards(); toggleClearButton(this.value)">
+                <span id="custom-clear-btn" onclick="clearSearch()">&times;</span>
+            </div>            
 
             <select id="domainFilter">
                 <option value="all">All Domains</option>
