@@ -773,7 +773,7 @@
     // --- 3. Learning Cards Logic ---
     function initCards() {
         const grid = document.getElementById("grid");
-        const search = document.getElementById("search-input"); // Matches your modern HTML ID
+        const search = document.getElementById("search"); // Matches your modern HTML ID
         const domainFilter = document.getElementById("domainFilter");
 
         const domains = [...new Set(parsedCurriculumData.map(d => d.domain))];
