@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Foundations Curriculum</title>
+    <!-- Three.js for 3D Vector Space / Constellation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Vis-Network for Mindmap -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --accent: #38bdf8;
+            --text: #e2e8f0; --muted: #94a3b8;
+        }
+        /* body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; } */
+        
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+        /* Allow views with long cards or visual lists to scroll independently on mobile */
+        .view { overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
+
+        /* Slide Fade Animations */
+        .view { 
+            position: absolute; inset: 0; width: 100%; height: calc(100% - 60px); 
+            opacity: 0; pointer-events: none; transition: opacity 0.45s ease;
+            display: block; 
+        }
+        .view.active { 
+            opacity: 1; pointer-events: all; 
+        }
+        
+        /* Shared Headers */
+        .page-header { 
+            text-align: center; 
+            padding-top: 2rem; 
+            padding-bottom: 1rem; 
+                        
+            /* --- ADD THESE LINES TO MAKE IT STICKY --- */
+            position: sticky;
+            top: 0;
+            background: var(--bg); /* Matches the dark background color */
+            z-index: 100;          /* Keeps it layered above scrolling cards */
+            pointer-events: none;   /* Allows interaction with anything inside headers if needed */
+             
+        }
+
+        /* --- ADD THIS NEW RULE: Re-enable touch specifically for any links/buttons inside headers if needed --- */
+        .page-header h1, .page-header p {
+            pointer-events: auto;
+        }
+
+        .page-header h1 { color: var(--accent); font-size: 2rem; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+        .page-header p { color: var(--muted); margin-top: .5rem; text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
+        .absolute-header { position: absolute; top: 0; left: 0; width: 100%; z-index: 10; }
+        
+        /* Vector Space (Constellation) */
+        #view-constellation { background: radial-gradient(ellipse at center, #0a0e27 0%, #02040f 100%); }
+        #vector-container { width: 100%; height: 100%; }
+        #tooltip { position: absolute; pointer-events: none; background: rgba(0,0,0,0.85); border: 1px solid rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 8px; font-size: 13px; display: none; z-index: 20; white-space: nowrap; color: #fff; transition: opacity 0.2s; }
+        #hint { position: absolute; bottom: 15px; right: 15px; z-index: 10; font-size: 11px; opacity: 0.6; background: rgba(10,14,39,0.6); padding: 8px 12px; border-radius: 8px; color: #fff; pointer-events: none; }
+        
+        /* Mindmap */
+        #mindmap-container { width: 100%; height: 100%; background: #1e293b; }
+        
+        /* Learning Cards */
+        #view-cards { overflow-y: auto; padding: 0 2rem 2rem 2rem; box-sizing: border-box; background: var(--bg); height: calc(100% - 60px); }
+        
+        .controls { 
+            display: flex; 
+            gap: 1rem; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            margin-bottom: 2rem; 
+            
+            /* --- ADD THESE LINES TO STICK SEARCH/FILTERS --- */
+            position: sticky;
+            top: 5.5rem;          /* Sits cleanly right under the sticky page-header text */
+            background: var(--bg);
+            padding-bottom: 1.5rem; /* Creates a clean gap above the cards when scrolling */
+
+            z-index: 101;            
+            /* --- ADD THIS LINE TO FIX MOBILE TYPING --- */
+            pointer-events: all;
+        }
+
+        input, select { padding: .6rem 1rem; border-radius: 8px; border: 1px solid #334155; background: var(--card); color: var(--text); font-size: 1rem; transition: border-color 0.2s; }
+        input:focus, select:focus { border-color: var(--accent); outline: none; }
+        input { min-width: 280px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; padding-bottom: 40px; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.2rem; border-left: 4px solid var(--accent); transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; cursor: pointer; position: relative; overflow: hidden; }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(56,189,248,.15); }
+        .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: currentColor; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+        .card:hover::before { opacity: 0.05; }
+        .card .id { font-size: .7rem; color: var(--accent); letter-spacing: 1px; }
+        .card h3 { margin: .3rem 0 .5rem; font-size: 1.1rem; color: var(--text); }
+        .card p { color: var(--muted); font-size: .9rem; line-height: 1.4; margin: 0; }
+        .phase-tag { display: inline-block; margin-top: .8rem; font-size: .7rem; background: rgba(56,189,248,.15); color: var(--accent); padding: .2rem .6rem; border-radius: 20px; }
+        .empty { text-align: center; color: var(--muted); grid-column: 1/-1; padding: 2rem; }
+        
+        /* Universe at a Glance */
+        #view-visual { overflow-y: auto; padding: 0 2rem 2rem 2rem; box-sizing: border-box; background: var(--bg); }
+        .visual-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap: 18px; margin-top: 14px; padding-bottom: 40px;}
+        .visual-card { background: var(--card); border: 1px solid #334155; border-radius: 13px; padding: 18px; transition: border-color 0.25s, transform 0.25s; }
+        .visual-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .visual-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .visual-card-header h3 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+        .topic-pill-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+        .topic-pill { font-size: 0.72rem; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
+        .moon-tag-list { display: flex; flex-wrap: wrap; gap: 3px; padding-top: 7px; border-top: 1px solid #334155; }
+        .moon-tag { font-size: 0.66rem; padding: 2px 7px; border-radius: 20px; }
+        .stats-bar { display: flex; justify-content: center; gap: 40px; background: var(--card); border: 1px solid #334155; border-radius: 13px; padding: 18px 24px; margin: 0 auto 26px; max-width: 600px; }
+        .stat { text-align: center; }
+        .stat-num { font-size: 1.7rem; font-weight: 800; color: var(--accent); }
+        .stat-label { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+        /* Overlay / Modal */
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 4, 15, 0.85); backdrop-filter: blur(5px); z-index: 2000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; }
+        #overlay.show { display: flex; opacity: 1; }
+        .modal { background: var(--card); border: 1px solid #334155; border-radius: 12px; padding: 2rem; max-width: 500px; width: 90%; position: relative; transform: translateY(20px); transition: transform 0.3s; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        #overlay.show .modal { transform: translateY(0); }
+        .close-btn { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; transition: color 0.2s; }
+        .close-btn:hover { color: var(--text); }
+        .modal h2 { margin-top: 0; color: var(--accent); }
+        
+        /* Bottom Nav (Dot System + Icons) */
+        #bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; gap: 20px; border-top: 1px solid #334155; z-index: 1000; }
+        .nav-btn { background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; padding: 5px 15px; border-radius: 5px; transition: all 0.3s; display: flex; align-items: center; gap: 5px;}
+        .nav-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+        
+        .dots-container { display: flex; gap: 10px; align-items: center; }
+        .nav-dot { width: 10px; height: 10px; border-radius: 5px; background: #475569; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .nav-dot:hover { background: #94a3b8; }
+        .nav-dot.active { width: 30px; background: #38bdf8; }
+
+        
+        /* Search Wrapper for absolute positioning */
+        .search-wrapper {
+            position: relative;
+            display: inline-block;
+            min-width: 300px;
+        }
+
+        /* Make sure the input stretches nicely inside the wrapper */
+        .search-wrapper input {
+            width: 100%;
+            padding-right: 35px; /* Leave space for the X button */
+            box-sizing: border-box;
+        }
+
+        /* The custom X button style */
+        #custom-clear-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: var(--muted);
+            cursor: pointer;
+            display: none; /* Hidden by default until you type */
+            user-select: none;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            
+            /* --- ADDED/UPDATED FOR MOBILE INTERACTION --- */
+            z-index: 110;          /* Forces it to layer ABOVE the text input box */
+            pointer-events: all;   /* Guarantees mobile OS prioritizes the touch event here */
+            padding: 5px;          /* Increases touch target size for fingers */
+        }
+
+
+        #custom-clear-btn:hover {
+            color: var(--text);
+        }
+
+        @media (max-width: 768px) {
+            .page-header h1 { font-size: 1.4rem; }
+    
+            /* Adjust the sticky threshold for mobile screens since the title is shorter */
+            .controls { 
+                position: sticky;
+                top: 4.2rem; 
+            }
+
+            .page-header p { font-size: 0.85rem; padding: 0 10px; }
+            
+            /* Reposition absolute headers over canvas elements to maximize visual space */
+            .absolute-header { padding-top: 1rem; }
+
+            /* Adjust padding for Card views so they don't hit the screen edge */
+            #view-cards, #view-visual { padding: 0 1rem 2rem 1rem; }
+
+            /* Make search and filters stack vertically instead of stretching horizontally */
+            .controls { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+            input { min-width: 100%; box-sizing: border-box; }
+            select { width: 100%; }
+
+            /* Dynamically adjust layouts into simpler single columns */
+            .grid, .visual-grid { 
+                grid-template-columns: 1fr !important; 
+                gap: 12px; 
+            }
+
+            /* Compress stats display bar */
+            .stats-bar { gap: 15px; padding: 12px; margin-bottom: 15px; }
+            .stat-num { font-size: 1.3rem; }
+
+            /* Shrink modal overlay container sizes */
+            .modal { padding: 1.5rem; width: 85%; }
+            
+            /* Space out bottom navigation items for easier finger-tapping */
+            #bottom-nav { gap: 10px; }
+            .nav-btn { padding: 5px 8px; font-size: 18px; }
+
+            .search-wrapper { min-width: 100%; }
+        }
+
+        /* Force the native clear button ('X') to show up on mobile WebKit browsers */
+        input[type="search"]::-webkit-search-cancel-button {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            
+            /* Give it explicit dimensions so it's a visible touch target */
+            height: 16px;
+            width: 16px;
+            display: inline-block;
+            
+            /* Use a clean SVG 'X' icon that stands out on dark backgrounds */
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'><path d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/></svg>");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        /* Prevent mobile safari from hiding it natively */
+        input[type="search"]::-webkit-search-decoration {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 1. Cosmic View-->
+    <div id="view-constellation" class="view active">
+        <div class="page-header absolute-header">
+            <h1>🌌 Cosmic Atlas</h1>
+            <p>Navigate domains, topics, and subjects across the universe</p>
+        </div>
+        <div id="tooltip"></div>
+        <div id="hint">🖱️ Drag to rotate • Scroll to zoom • Right-click to pan</div>
+        <div id="vector-container"></div>
+    </div>
+
+    <!-- 2. Mindmap View -->
+    <div id="view-mindmap" class="view">
+        <div class="page-header absolute-header">
+            <h1>🕸️ Neural Map</h1>
+            <p>An interactive network of domains, topics, and subjects</p>
+        </div>
+        <div id="mindmap-container"></div>        
+    </div>
+
+    <!-- 3. Control View -->
+    <div id="view-visual" class="view">
+        <div class="page-header">
+            <h1>📡 Mission Control</h1>            
+            <p>Command every domain, topic, and subject at a glance</p>
+
+        </div>
+        <div class="stats-bar">
+            <div class="stat"><div class="stat-num" id="stat-domains">0</div><div class="stat-label">Domains</div></div>
+            <div class="stat"><div class="stat-num" id="stat-topics">0</div><div class="stat-label">Topics</div></div>
+            <div class="stat"><div class="stat-num" id="stat-subs">0</div><div class="stat-label">Subjects</div></div>
+        </div>
+        <div class="visual-grid" id="visual-grid"></div>
+    </div>
+
+    <!-- 4. Explorer View -->
+    <div id="view-cards" class="view">
+        <div class="page-header">
+            <h1>🔍 Subject Explorer</h1>
+            <!-- <p>Search and explore every subject across all domains</p> -->
+        </div>
+        <div class="controls">            
+            <div class="search-wrapper">
+                <input type="text" id="search" placeholder="Search subjects..." oninput="filterCards(); toggleClearButton(this.value)">
+                <span id="custom-clear-btn" onclick="clearSearch()">&times;</span>
+            </div>            
+
+            <select id="domainFilter">
+                <option value="all">All Domains</option>
+            </select>
+        </div>
+        <div class="grid" id="grid"></div>
+    </div>   
+
+    <!-- Modal Overlay -->
+    <div id="overlay">
+        <div class="modal">
+            <button class="close-btn" onclick="closeModal()">×</button>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <!-- Navigation (Icons + Dots) -->
+    <nav id="bottom-nav">
+        <button class="nav-btn" onclick="switchView('constellation')" title="Home (Constellations)">🏠</button>
+        <button class="nav-btn" onclick="prevView()" title="Previous View">&#8592;</button>
+        <div class="dots-container">
+            <div id="dot-constellation" class="nav-dot active" onclick="switchView('constellation')" title="Constellations"></div>
+            <div id="dot-mindmap" class="nav-dot" onclick="switchView('mindmap')" title="Mindmap"></div>
+            <div id="dot-visual" class="nav-dot" onclick="switchView('visual')" title="Universe at a Glance"></div>
+            <div id="dot-cards" class="nav-dot" onclick="switchView('cards')" title="Learning Cards"></div>            
+        </div>
+        <button class="nav-btn" onclick="nextView()" title="Next View">&#8594;</button>
+        <div id="page-counter" style="color: var(--muted); font-size: 0.85rem; margin-left: 10px; font-variant-numeric: tabular-nums;">1/4</div>
+    </nav>
+
+<!-- LOAD THE EXTERNAL CURRICULUM DATA (MARKDOWN FORMAT) -->
+<script src="course-curriculum.js"></script>
+
+<script>
+    // ─────────────────────────────────────────────────────────────────
+    // GLOBAL STATE
+    // ─────────────────────────────────────────────────────────────────
+    const views = ['constellation', 'mindmap', 'visual', 'cards'];
+    let currentViewIndex = 0;
+    let networkInstance = null;       // Holds the vis-network instance
+    let parsedCurriculumData = [];    // Shared data used by Views 1, 3, 4
+
+    // ─────────────────────────────────────────────────────────────────
+    // KEYBOARD NAVIGATION
+    // ─────────────────────────────────────────────────────────────────
+    window.addEventListener('keydown', e => {
+        const tag = (e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+        switch (e.key) {
+            case 'ArrowLeft':  prevView(); e.preventDefault(); break;
+            case 'ArrowRight': nextView(); e.preventDefault(); break;
+        }
+    });
+
+    // ─────────────────────────────────────────────────────────────────
+    // UTILITY: Extract course title from # H1 (Option B)
+    // H1 is the ONLY heading that is consumed here — never rendered.
+    // ─────────────────────────────────────────────────────────────────
+    function extractCourseTitle(markdown, fallback = "Curriculum") {
+        const lines = markdown.split("\n");
+        for (const line of lines) {
+            const trimmed = line.trim();
+            // startsWith("# ") but NOT "## " ensures we only match true H1
+            if (trimmed.startsWith("# ") && !trimmed.startsWith("## ")) {
+                return trimmed.slice(2).trim();
+            }
+        }
+        return fallback;
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // CORE PARSER: Feeds Views 1 (Constellation), 3 (Cards), 4 (Visual)
+    //
+    // Option B heading map:
+    //   # H1   → course title ONLY — skipped
+    //   ## H2  → domain
+    //   ### H3 → topic
+    //   - bullet → subject  (format: "Name: Description")
+    // ─────────────────────────────────────────────────────────────────
+    function parseMarkdownToData(mdStr) {
+        const lines = mdStr.split('\n');
+        const data = [];
+        let currentDomain = null;
+        let currentTopic = null;
+        let topicCounter = 0;
+
+        lines.forEach(line => {
+            line = line.trim();
+            if (!line) return;
+
+            // # H1 → Course title — skip entirely, used only by extractCourseTitle()
+            if (line.startsWith('# ') && !line.startsWith('## ')) {
+                return;
+            }
+
+            // ## H2 → Domain (was # H1 in Option A)
+            else if (line.startsWith('## ') && !line.startsWith('### ')) {
+                currentDomain = line.substring(3).trim();
+                currentTopic = null; // reset topic context on new domain
+            }
+
+            // ### H3 → Topic (was ## H2 in Option A)
+            else if (line.startsWith('### ') && !line.startsWith('#### ')) {
+                currentTopic = line.substring(4).trim();
+                topicCounter++;
+            }
+
+            // - Bullet → Subject (unchanged — still "Name: Description" format)
+            else if (line.startsWith('- ')) {
+                if (currentDomain && currentTopic) {
+                    const parts = line.substring(2).split(':');
+                    const name = parts[0].trim();
+                    const desc = parts.slice(1).join(':').trim() || '';
+
+                    // Find or create the topic entry in the data array
+                    let topicEntry = data.find(
+                        d => d.domain === currentDomain && d.topic === currentTopic
+                    );
+                    if (!topicEntry) {
+                        topicEntry = {
+                            domain: currentDomain,
+                            topic: currentTopic,
+                            topicId: 'T' + topicCounter,
+                            subjects: []
+                        };
+                        data.push(topicEntry);
+                    }
+
+                    // Build a unique subject ID  e.g. T1-S1, T1-S2
+                    const subjectCounter = topicEntry.subjects.length + 1;
+                    const subId = topicEntry.topicId + '-S' + subjectCounter;
+
+                    topicEntry.subjects.push({
+                        name,
+                        desc,
+                        id: subId,
+                        domain: currentDomain,
+                        topic: currentTopic
+                    });
+                }
+            }
+        });
+
+        return data;
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // BOOTSTRAP: Extract title + parse data immediately after load
+    // ─────────────────────────────────────────────────────────────────
+    if (typeof curriculumMarkdown !== 'undefined') {
+        // 1. Set browser tab title from # H1
+        // Fix — let extractCourseTitle() find it from # H1, fallback is generic ✅
+        const courseTitle = extractCourseTitle(curriculumMarkdown);
+        document.title = courseTitle;
+
+        // 2. Parse shared data for Views 1, 3, 4
+        parsedCurriculumData = parseMarkdownToData(curriculumMarkdown);
+
+        console.log("Option B — Course Title:", courseTitle);
+        console.log("Option B — Parsed Data:", parsedCurriculumData);
+    } else {
+        alert('Error: Could not load course-curriculum.js. Make sure it is in the same folder.');
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // COLOR PALETTE (unchanged)
+    // ─────────────────────────────────────────────────────────────────
+    const palette = [
+        { base: '#38bdf8', hex: 0x38bdf8, em: 0x0284c7, rgba: 'rgba(56, 189, 248, 0.75)' },
+        { base: '#10b981', hex: 0x10b981, em: 0x059669, rgba: 'rgba(16, 185, 129, 0.75)' },
+        { base: '#8b5cf6', hex: 0x8b5cf6, em: 0x6d28d9, rgba: 'rgba(139, 92, 246, 0.75)' },
+        { base: '#f43f5e', hex: 0xf43f5e, em: 0xbe123c, rgba: 'rgba(244, 63, 94, 0.75)' },
+        { base: '#f59e0b', hex: 0xf59e0b, em: 0xb45309, rgba: 'rgba(245, 158, 11, 0.75)' },
+        { base: '#ec4899', hex: 0xec4899, em: 0xbe185d, rgba: 'rgba(236, 72, 153, 0.75)' },
+        { base: '#14b8a6', hex: 0x14b8a6, em: 0x0f766e, rgba: 'rgba(20, 184, 166, 0.75)' },
+        { base: '#eab308', hex: 0xeab308, em: 0xa16207, rgba: 'rgba(234, 179, 8, 0.75)' },
+        { base: '#6366f1', hex: 0x6366f1, em: 0x4338ca, rgba: 'rgba(99, 102, 241, 0.75)' },
+        { base: '#f97316', hex: 0xf97316, em: 0xc2410c, rgba: 'rgba(249, 115, 22, 0.75)' }
+    ];
+
+    // ─────────────────────────────────────────────────────────────────
+    // VIEW NAVIGATION
+    // ─────────────────────────────────────────────────────────────────
+    function switchView(viewId) {
+        currentViewIndex = views.indexOf(viewId);
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('view-' + viewId).classList.add('active');
+
+        document.querySelectorAll('.nav-dot').forEach(d => d.classList.remove('active'));
+        document.getElementById('dot-' + viewId).classList.add('active');
+
+        // Re-fit the mindmap when switching to it
+        if (viewId === 'mindmap' && networkInstance) {
+            setTimeout(() => {
+                networkInstance.fit({ animation: { duration: 800, easingFunction: 'easeInOutQuad' } });
+            }, 100);
+        }
+
+        const pageNum = currentViewIndex + 1;
+        document.getElementById('page-counter').textContent = ` ${pageNum}/${views.length}`;
+    }
+    function nextView() { switchView(views[(currentViewIndex + 1) % views.length]); }
+    function prevView() { switchView(views[(currentViewIndex - 1 + views.length) % views.length]); }
+
+    // ─────────────────────────────────────────────────────────────────
+    // MODAL
+    // ─────────────────────────────────────────────────────────────────
+    function openModal(sub, color) {
+        const overlay = document.getElementById('overlay');
+        const content = document.getElementById('modal-content');
+        content.innerHTML = `
+            <div class="id" style="color:${color};font-size:0.8rem;letter-spacing:1px">${sub.id}</div>
+            <h2 style="color:${color};margin-top:0.5rem">${sub.name}</h2>
+            <p style="color:var(--text);line-height:1.6">${sub.desc}</p>
+            <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #334155">
+                <span class="phase-tag" style="color:${color};background:${color}20">
+                    ${sub.domain} • ${sub.topic.replace(/^\d+\.\s*/, '')}
+                </span>
+            </div>`;
+        overlay.classList.add('show');
+    }
+    function closeModal() {
+        document.getElementById('overlay').classList.remove('show');
+    }
+    document.getElementById('overlay').addEventListener('click', e => {
+        if (e.target === document.getElementById('overlay')) closeModal();
+    });
+
+    // ─────────────────────────────────────────────────────────────────
+    // VIEW 1: VECTOR SPACE / CONSTELLATION — Improved
+    //
+    // Improvements vs original:
+    //   MOTION
+    //     1. Cluster drift: mixed sin+cos per axis → organic, less robotic
+    //     2. Planet orbits: random inclination tilt (up to 35°) → real 3D depth
+    //     3. Moon orbits:   random inclination tilt (up to 25°) → same
+    //     4. Domain sphere: slow self-rotation → feels like a living star
+    //     5. Planet speed:  wider range (inner fast, outer slow) → Kepler-like
+    //     6. Starfield:     slow parallax drift on Y axis → subtle depth
+    //
+    //   VISUAL
+    //     7. Domain label: always visible but at safer y=20 offset
+    //     8. Orbit lines:  planet orbits lighter than moon orbits (hierarchy)
+    //     9. Cursor:       pointer only for moons (clickable), default for others
+    //    10. Hover tooltip: prefixed with level emoji 🌟 🪐 🌙
+    //
+    //   UX
+    //    11. Hint text: fades out after 4 seconds automatically
+    //    12. Reset camera: double-click on empty space resets to home position
+    //    13. Hint text: updated for touch devices
+    // ─────────────────────────────────────────────────────────────────
+    function initVectorSpace() {
+        const container = document.getElementById('vector-container');
+
+        // ── Scene setup ───────────────────────────────────────────────
+        const scene  = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+            60,
+            window.innerWidth / (window.innerHeight - 60),
+            0.1,
+            2000
+        );
+        // Store home position for double-click reset (UX improvement 12)
+        const homePosition = { x: 0, y: 100, z: 320 };
+        camera.position.set(homePosition.x, homePosition.y, homePosition.z);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight - 60);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping  = true;
+        controls.dampingFactor  = 0.05;
+        controls.enablePan      = true;
+        controls.minDistance    = 40;   // prevent clipping into nodes
+        controls.maxDistance    = 800;  // prevent zooming out to void
+
+        // ── Lighting ──────────────────────────────────────────────────
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+        const pointLight = new THREE.PointLight(0xffffff, 1.2);
+        pointLight.position.set(0, 200, 0);
+        scene.add(pointLight);
+
+        // ── Starfield (improvement 6: slow parallax drift) ────────────
+        const starGeo  = new THREE.BufferGeometry();
+        const starVerts = [];
+        for (let i = 0; i < 1500; i++) {
+            starVerts.push(
+                (Math.random() - 0.5) * 1600,
+                (Math.random() - 0.5) * 1600,
+                (Math.random() - 0.5) * 1600
+            );
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+        const starField = new THREE.Points(
+            starGeo,
+            new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.5 })
+        );
+        scene.add(starField);
+
+        // ── Node & sprite helpers ─────────────────────────────────────
+        function createNodeMesh(size, colorHex, emissiveHex, isMoon = false) {
+            const geo  = new THREE.SphereGeometry(size, 32, 32);
+            const mat  = new THREE.MeshPhongMaterial({
+                color: colorHex, emissive: emissiveHex,
+                emissiveIntensity: 0.5, shininess: 80
+            });
+            const mesh    = new THREE.Mesh(geo, mat);
+            const haloGeo = new THREE.SphereGeometry(size * (isMoon ? 2.5 : 1.6), 24, 24);
+            const haloMat = new THREE.MeshBasicMaterial({
+                color: emissiveHex, transparent: true,
+                opacity: isMoon ? 0.25 : 0.15
+            });
+            mesh.add(new THREE.Mesh(haloGeo, haloMat));
+            return mesh;
+        }
+
+        function createSprite(text, fontSize, bgColor) {
+            const canvas = document.createElement('canvas');
+            const ctx    = canvas.getContext('2d');
+            ctx.font     = `bold ${fontSize}px Segoe UI, sans-serif`;
+            const w      = ctx.measureText(text).width;
+            canvas.width  = w + 30;
+            canvas.height = fontSize + 20;
+            ctx.font      = `bold ${fontSize}px Segoe UI, sans-serif`;
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.roundRect(0, 0, canvas.width, canvas.height, 12);
+            ctx.fill();
+            ctx.fillStyle    = '#ffffff';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 15, canvas.height / 2);
+            const tex    = new THREE.CanvasTexture(canvas);
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+            sprite.scale.set(canvas.width / 8, canvas.height / 8, 1);
+            return sprite;
+        }
+
+        // ── Build domain → topic → subject hierarchy ──────────────────
+        const domainsMap  = {};
+        parsedCurriculumData.forEach(topicObj => {
+            if (!domainsMap[topicObj.domain]) domainsMap[topicObj.domain] = [];
+            domainsMap[topicObj.domain].push(topicObj);
+        });
+
+        const domainNames  = Object.keys(domainsMap);
+        const domainRadius = 140;
+        const orbitPivots  = [];
+        const nodeMeshes   = [];
+        let   hoveredMesh  = null;
+
+        domainNames.forEach((domainName, i) => {
+            const clusterColor = palette[i % palette.length];
+            const clusterGroup = new THREE.Group();
+
+            // Fibonacci sphere distribution — even spread across sphere surface
+            const phi   = Math.acos(1 - 2 * (i + 0.5) / domainNames.length);
+            const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+
+            const bx0 = domainRadius * Math.cos(theta) * Math.sin(phi);
+            const by0 = domainRadius * Math.cos(phi);
+            const bz0 = domainRadius * Math.sin(theta) * Math.sin(phi);
+
+            // IMPROVEMENT 1: Mixed sin+cos per axis → organic drift path
+            // Using cos on Y prevents all clusters drifting in sync
+            clusterGroup.userData = {
+                bx0, by0, bz0,
+                ampX: 18 + Math.random() * 22,
+                ampY: 14 + Math.random() * 18,
+                ampZ: 18 + Math.random() * 22,
+                spX:  (0.0008 + Math.random() * 0.0012) * (Math.random() < 0.5 ? 1 : -1),
+                spY:  (0.0006 + Math.random() * 0.0010) * (Math.random() < 0.5 ? 1 : -1),
+                spZ:  (0.0008 + Math.random() * 0.0012) * (Math.random() < 0.5 ? 1 : -1),
+                phX:  Math.random() * Math.PI * 2,
+                phY:  Math.random() * Math.PI * 2,
+                phZ:  Math.random() * Math.PI * 2,
+                // IMPROVEMENT 4: slow self-rotation speed per cluster
+                rotSpeedY: (0.0005 + Math.random() * 0.0008) * (Math.random() < 0.5 ? 1 : -1),
+                type: 'cluster'
+            };
+
+            // Domain (star) mesh
+            const domainMesh = createNodeMesh(9, clusterColor.hex, clusterColor.em);
+            domainMesh.userData = { label: domainName, type: 'domain' };
+            clusterGroup.add(domainMesh);
+            nodeMeshes.push(domainMesh);
+
+            // IMPROVEMENT 7: domain label at safer y offset
+            const dSprite = createSprite(domainName, 44, clusterColor.rgba);
+            dSprite.position.set(0, 20, 0);     // raised from 16 → 20 to avoid clipping
+            domainMesh.add(dSprite);
+
+            const topics = domainsMap[domainName];
+
+            topics.forEach((topicObj, j) => {
+                const planetGroup = new THREE.Group();
+
+                // IMPROVEMENT 5: wider speed range — inner orbits faster (Kepler-like)
+                // Inner planet (small j) gets higher base speed
+                const baseSpeed   = 0.35 - j * 0.04;               // inner=fast, outer=slow
+                const pSpeed      = Math.max(0.08, baseSpeed) *
+                                    (j % 2 === 0 ? 1 : -1) / 300;  // alternating direction
+                const pAngle0     = (j / topics.length) * Math.PI * 2;
+                const pOrbit      = 35 + j * 8 + Math.random() * 8; // stepped orbit radii
+
+                // IMPROVEMENT 2: random orbit inclination for 3D depth
+                const pTiltX = (Math.random() - 0.5) * 0.6;         // up to ~35° tilt on X
+                const pTiltZ = (Math.random() - 0.5) * 0.3;         // smaller Z tilt
+
+                planetGroup.userData = {
+                    orbitR: pOrbit, angle: pAngle0, speed: pSpeed,
+                    tiltX: pTiltX, tiltZ: pTiltZ,
+                    type: 'planet'
+                };
+
+                const cleanTopicName = topicObj.topic.replace(/^\d+\.\s*/, '');
+                const topicMesh      = createNodeMesh(5, clusterColor.hex, clusterColor.em);
+                topicMesh.userData   = { label: cleanTopicName, type: 'topic' };
+                planetGroup.add(topicMesh);
+                nodeMeshes.push(topicMesh);
+
+                const tSprite = createSprite(cleanTopicName, 32, clusterColor.rgba);
+                tSprite.position.set(0, 11, 0);
+                tSprite.visible = false;
+                topicMesh.add(tSprite);
+
+                // IMPROVEMENT 8: planet orbit lines slightly transparent, own color
+                const orbitPts  = new THREE.Path()
+                    .absarc(0, 0, pOrbit, 0, Math.PI * 2)
+                    .getSpacedPoints(64);
+                const orbitGeo  = new THREE.BufferGeometry().setFromPoints(orbitPts);
+                const orbitLine = new THREE.Line(
+                    orbitGeo,
+                    new THREE.LineBasicMaterial({
+                        color: clusterColor.hex,    // domain color (not flat grey)
+                        transparent: true,
+                        opacity: 0.15              // subtle — doesn't clutter
+                    })
+                );
+                // Apply tilt to orbit line to match planet path
+                orbitLine.rotation.x = Math.PI / 2 + pTiltX;
+                orbitLine.rotation.z = pTiltZ;
+                clusterGroup.add(orbitLine);
+
+                topicObj.subjects.forEach((sub, k) => {
+                    const moonGroup = new THREE.Group();
+
+                    const mSpeed  = (0.55 + k * 0.08) * (k % 2 === 0 ? 1 : -1) / 360;
+                    const mAngle0 = (k / topicObj.subjects.length) * Math.PI * 2;
+                    const mOrbit  = 14 + k * 3 + Math.random() * 4;  // stepped moon orbits
+
+                    // IMPROVEMENT 3: random moon orbit inclination
+                    const mTiltX  = (Math.random() - 0.5) * 0.45;    // up to ~25° tilt
+                    const mTiltZ  = (Math.random() - 0.5) * 0.2;
+
+                    moonGroup.userData = {
+                        orbitR: mOrbit, angle: mAngle0, speed: mSpeed,
+                        tiltX: mTiltX, tiltZ: mTiltZ,
+                        type: 'moon'
+                    };
+
+                    const subMesh    = createNodeMesh(2.5, clusterColor.hex, clusterColor.em, true);
+                    subMesh.userData = {
+                        label: sub.name, type: 'subject',
+                        fullObj: sub, color: clusterColor.base
+                    };
+                    moonGroup.add(subMesh);
+                    nodeMeshes.push(subMesh);
+
+                    const sSprite = createSprite(sub.name, 24, 'rgba(0,0,0,0.6)');
+                    sSprite.position.set(0, 6, 0);
+                    sSprite.visible = false;
+                    subMesh.add(sSprite);
+
+                    // IMPROVEMENT 8: moon orbit lines dimmer than planet orbits
+                    const mOrbitPts  = new THREE.Path()
+                        .absarc(0, 0, mOrbit, 0, Math.PI * 2)
+                        .getSpacedPoints(32);
+                    const mOrbitGeo  = new THREE.BufferGeometry().setFromPoints(mOrbitPts);
+                    const mOrbitLine = new THREE.Line(
+                        mOrbitGeo,
+                        new THREE.LineBasicMaterial({
+                            color: 0x334155,
+                            transparent: true,
+                            opacity: 0.2               // dimmer than planet orbit lines
+                        })
+                    );
+                    mOrbitLine.rotation.x = Math.PI / 2 + mTiltX;
+                    mOrbitLine.rotation.z = mTiltZ;
+                    planetGroup.add(mOrbitLine);
+                    planetGroup.add(moonGroup);
+                });
+
+                clusterGroup.add(planetGroup);
+            });
+
+            orbitPivots.push(clusterGroup);
+            scene.add(clusterGroup);
+        });
+
+        // ── Raycaster & tooltip ───────────────────────────────────────
+        const raycaster = new THREE.Raycaster();
+        const mouse     = new THREE.Vector2();
+        const tooltip   = document.getElementById('tooltip');
+
+        container.addEventListener('mousemove', e => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / (window.innerHeight - 60)) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(nodeMeshes);
+
+            // Clear previous hover state cleanly
+            if (hoveredMesh) {
+                if (hoveredMesh.userData.type !== 'domain') {
+                    const sprite = hoveredMesh.children.find(c => c.type === 'Sprite');
+                    if (sprite) sprite.visible = false;
+                }
+                hoveredMesh = null;
+            }
+
+            if (hits.length) {
+                hoveredMesh = hits[0].object;
+                const ud    = hoveredMesh.userData;
+
+                // IMPROVEMENT 10: tooltip prefix shows node level
+                const prefix = ud.type === 'domain'  ? '🌟 ' :
+                            ud.type === 'topic'   ? '🪐 ' : '🌙 ';
+                tooltip.innerHTML      = prefix + ud.label;
+                tooltip.style.left     = (e.clientX + 14) + 'px';
+                tooltip.style.top      = (e.clientY + 14) + 'px';
+                tooltip.style.display  = 'block';
+
+                // IMPROVEMENT 9: pointer cursor only for clickable moons
+                container.style.cursor = ud.type === 'subject' ? 'pointer' : 'default';
+
+                if (ud.type !== 'domain') {
+                    const sprite = hoveredMesh.children.find(c => c.type === 'Sprite');
+                    if (sprite) sprite.visible = true;
+                }
+            } else {
+                tooltip.style.display  = 'none';
+                container.style.cursor = 'default';
+            }
+        });
+
+        container.addEventListener('click', e => {
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(nodeMeshes);
+            if (hits.length && hits[0].object.userData.type === 'subject') {
+                openModal(hits[0].object.userData.fullObj, hits[0].object.userData.color);
+            }
+        });
+
+        // IMPROVEMENT 12: double-click empty space resets camera to home
+        container.addEventListener('dblclick', e => {
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(nodeMeshes);
+            if (!hits.length) {
+                // Animate back to home position smoothly
+                const startPos = camera.position.clone();
+                const target   = new THREE.Vector3(homePosition.x, homePosition.y, homePosition.z);
+                let   t        = 0;
+                function resetAnim() {
+                    t += 0.04;
+                    camera.position.lerpVectors(startPos, target, Math.min(t, 1));
+                    controls.update();
+                    if (t < 1) requestAnimationFrame(resetAnim);
+                }
+                resetAnim();
+            }
+        });
+
+        // Mobile touch
+        container.addEventListener('touchstart', e => {
+            if (e.touches.length === 1) {
+                mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.touches[0].clientY / (window.innerHeight - 60)) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const hits = raycaster.intersectObjects(nodeMeshes);
+                if (hits.length && hits[0].object.userData.type === 'subject') {
+                    openModal(hits[0].object.userData.fullObj, hits[0].object.userData.color);
+                }
+            }
+        }, { passive: true });
+
+        // IMPROVEMENT 11: hint text fades out after 4 seconds
+        const hint = document.getElementById('hint');
+        // Update hint for touch devices
+        if ('ontouchstart' in window) {
+            hint.textContent = '👆 Tap moon to explore • Pinch to zoom • Drag to rotate';
+        }
+        setTimeout(() => {
+            hint.style.transition = 'opacity 1.5s ease';
+            hint.style.opacity    = '0';
+            // After fade remove from interaction so it doesn't block touches
+            setTimeout(() => { hint.style.pointerEvents = 'none'; }, 1500);
+        }, 4000);
+
+        // ── Animation loop ────────────────────────────────────────────
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time++;
+
+            // IMPROVEMENT 6: starfield slow parallax drift on Y
+            starField.rotation.y = time * 0.00008;
+
+            orbitPivots.forEach(cl => {
+                const ud = cl.userData;
+
+                // IMPROVEMENT 1: mixed sin+cos for organic drift
+                cl.position.x = ud.bx0 + Math.sin(time * ud.spX + ud.phX) * ud.ampX;
+                cl.position.y = ud.by0 + Math.cos(time * ud.spY + ud.phY) * ud.ampY; // cos on Y
+                cl.position.z = ud.bz0 + Math.sin(time * ud.spZ + ud.phZ) * ud.ampZ;
+
+                // IMPROVEMENT 4: slow self-rotation of entire cluster
+                cl.rotation.y += ud.rotSpeedY;
+
+                cl.children.forEach(child => {
+                    if (!child.userData) return;
+
+                    // Planet orbiting domain
+                    if (child.userData.type === 'planet') {
+                        child.userData.angle += child.userData.speed;
+
+                        // IMPROVEMENT 2: apply tilt to orbit calculation
+                        const a    = child.userData.angle;
+                        const r    = child.userData.orbitR;
+                        const tx   = child.userData.tiltX;
+
+                        // Tilted circular orbit: rotate position vector by tilt angle
+                        child.position.x = Math.cos(a) * r;
+                        child.position.y = Math.sin(a) * r * Math.sin(tx); // tilt lifts out of plane
+                        child.position.z = Math.sin(a) * r * Math.cos(tx);
+
+                        child.children.forEach(grandchild => {
+                            if (!grandchild.userData) return;
+
+                            // Moon orbiting planet
+                            if (grandchild.userData.type === 'moon') {
+                                grandchild.userData.angle += grandchild.userData.speed;
+
+                                const ma   = grandchild.userData.angle;
+                                const mr   = grandchild.userData.orbitR;
+                                const mtx  = grandchild.userData.tiltX;
+
+                                // IMPROVEMENT 3: tilted moon orbit
+                                grandchild.position.x = Math.cos(ma) * mr;
+                                grandchild.position.y = Math.sin(ma) * mr * Math.sin(mtx);
+                                grandchild.position.z = Math.sin(ma) * mr * Math.cos(mtx);
+                            }
+                        });
+                    }
+                });
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // ── Resize handler ────────────────────────────────────────────
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / (window.innerHeight - 60);
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight - 60);
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // VIEW 2: MINDMAP (Option B — fully corrected)
+    //
+    // CRITICAL FIX: checks are ordered longest-prefix-first so that
+    //   "### heading" is never caught by the "# " or "## " branch.
+    //
+    // Level map:
+    //   # H1      → center star label ONLY via extractCourseTitle()
+    //   ## H2     → Domain node  (dot,     size 20, palette color)
+    //   ### H3    → Topic node   (ellipse, size 14, palette color)
+    //               Label kept EXACTLY as authored — no stripping
+    //   - bullets → Moon node    (dot,     size  8, faded palette color)
+    //               Label = text before ":" | Tooltip = full bullet text
+    // ─────────────────────────────────────────────────────────────────
+    function initMindmap() {
+        const container = document.getElementById('mindmap-container');
+
+        // ── Step 1: Center node label from # H1 ──────────────────────
+        // No hardcoded fallback string — generic "Curriculum" used if H1 missing.
+        // Since course-curriculum.js has "# AI Curriculum", this always resolves.
+        const courseTitle = extractCourseTitle(curriculumMarkdown);
+
+        const nodes = [{
+            id: 0,
+            label: courseTitle,
+            shape: "star",
+            size: 30,
+            color: { background: "#38bdf8", border: "#0284c7" },
+            font: { color: "white", size: 16, bold: true },
+            _type: "center"
+        }];
+
+        const edges = [];
+        let nodeId = 1;
+
+        // ── Step 2: State trackers ────────────────────────────────────
+        let currentDomainId    = null;  // id of most recent ## H2 node
+        let currentTopicId     = null;  // id of most recent ### H3 node
+        let currentDomainColor = null;  // palette base color of active domain
+        let domainColorIndex   = 0;     // increments only when a new domain is seen
+
+        // ── Step 3: Parse line by line ────────────────────────────────
+        // ORDER IS CRITICAL: check longest prefix first (#### before ### before ## before #)
+        // This prevents "### Heading" from being caught by the "# " startsWith check.
+        const lines = curriculumMarkdown.split("\n");
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+
+            // Skip blank lines
+            if (!trimmed) continue;
+
+            // ── #### H4 ── (reserved for future use, skip cleanly)
+            // Checked FIRST so it never falls into the ### or ## branch
+            if (trimmed.startsWith("#### ")) {
+                continue; // not used in current data — safe no-op
+            }
+
+            // ── ### H3 ── Topic node → child of current Domain
+            // Checked BEFORE ## so "### x" is never caught by "## " branch
+            // Label is kept EXACTLY as the user wrote it (numbers preserved)
+            else if (trimmed.startsWith("### ")) {
+                const label = trimmed.slice(4).trim();
+                // e.g. "1. What is Intelligence?" — kept as-is, user's original data
+
+                // Slightly fade the domain color to visually distinguish topic level
+                const topicColor = currentDomainColor || "#22c55e";
+
+                nodes.push({
+                    id: nodeId,
+                    label: label,
+                    shape: "ellipse",
+                    size: 14,                           // medium — topic level
+                    color: {
+                        background: topicColor + "bb",  // hex alpha ~73% opacity
+                        border: topicColor
+                    },
+                    font: { color: "white", size: 11 },
+                    _type: "topic"
+                });
+
+                // Connect to parent domain (guard against orphan topics)
+                if (currentDomainId !== null) {
+                    edges.push({
+                        from: currentDomainId,
+                        to: nodeId,
+                        length: 140,                    // medium distance domain → topic
+                        width: 1.5
+                    });
+                }
+
+                currentTopicId = nodeId;
+                nodeId++;
+            }
+
+            // ── ## H2 ── Domain node → child of center (id = 0)
+            // Checked BEFORE # so "## x" is never caught by "# " branch
+            else if (trimmed.startsWith("## ")) {
+                const label = trimmed.slice(3).trim();
+
+                // Each new domain gets the next palette color
+                currentDomainColor = palette[domainColorIndex % palette.length].base;
+                domainColorIndex++;
+
+                nodes.push({
+                    id: nodeId,
+                    label: label,
+                    shape: "dot",
+                    size: 20,                           // large — domain level
+                    color: {
+                        background: currentDomainColor,
+                        border: currentDomainColor
+                    },
+                    font: { color: "white", size: 14, bold: true },
+                    _type: "domain"
+                });
+
+                // Connect domain to center star
+                edges.push({
+                    from: 0,
+                    to: nodeId,
+                    length: 200,                        // longer edge from center
+                    width: 2
+                });
+
+                currentDomainId    = nodeId;
+                currentTopicId     = null;              // reset topic on new domain
+                nodeId++;
+            }
+
+            // ── # H1 ── Course title: consumed by extractCourseTitle() above
+            // Checked LAST among headings — by this point ## and ### already caught
+            // their own lines, so only a true single-# line reaches here
+            else if (trimmed.startsWith("# ")) {
+                continue;                               // skip — not rendered as a node
+            }
+
+            // ── - Bullet ── Moon node → child of current Topic
+            // Bullets carry "Name: Description" format
+            // Moon label = name only (clean, short)
+            // Moon tooltip = full bullet text (shown on hover)
+            else if (trimmed.startsWith("- ")) {
+                const fullText  = trimmed.slice(2).trim();  // strip leading "- "
+
+                // Split on first colon only to isolate name vs description
+                const colonIdx  = fullText.indexOf(":");
+                const moonLabel = colonIdx > -1
+                    ? fullText.slice(0, colonIdx).trim()    // "Turing Test"
+                    : fullText;                             // no colon → use full text
+                const moonTip   = fullText;                 // full text as hover tooltip
+
+                // Deep fade of domain color for moon level
+                const moonBg    = (currentDomainColor || "#94a3b8") + "66"; // ~40% opacity
+                const moonBd    = (currentDomainColor || "#94a3b8") + "99"; // ~60% opacity
+
+                nodes.push({
+                    id: nodeId,
+                    label: moonLabel,
+                    shape: "dot",
+                    size: 8,                                // small — moon level
+                    color: {
+                        background: moonBg,
+                        border: moonBd
+                    },
+                    font: { color: "#cbd5e1", size: 9 },
+                    title: moonTip,                         // vis-network hover tooltip
+                    _type: "moon"
+                });
+
+                // Connect moon to parent topic (guard against orphan moons)
+                if (currentTopicId !== null) {
+                    edges.push({
+                        from: currentTopicId,
+                        to: nodeId,
+                        length: 80,                         // short edge topic → moon
+                        width: 1,
+                        dashes: true                        // dashed = visually lighter
+                    });
+                }
+
+                nodeId++;
+            }
+
+        } // ── end line loop ──────────────────────────────────────────
+
+        // ── Step 4: Render with vis-network ──────────────────────────
+        // networkInstance stored globally so switchView() can call .fit()
+        networkInstance = new vis.Network(
+            container,
+            {
+                nodes: new vis.DataSet(nodes),
+                edges: new vis.DataSet(edges)
+            },
+            {
+                layout: { randomSeed: 42 },             // reproducible layout every load
+                physics: {
+                    solver: "forceAtlas2Based",
+                    forceAtlas2Based: {
+                        gravitationalConstant: -80,     // spread nodes apart
+                        centralGravity: 0.005,
+                        springLength: 120,
+                        springConstant: 0.04,
+                        damping: 0.4
+                    },
+                    stabilization: {
+                        iterations: 300,
+                        fit: true                       // auto-fit after stabilization
+                    }
+                },
+                edges: {
+                    smooth: { type: "cubicBezier" },
+                    color: {
+                        color: "#475569",
+                        highlight: "#38bdf8",
+                        opacity: 0.6
+                    }
+                },
+                nodes: {
+                    borderWidth: 1.5,
+                    shadow: {
+                        enabled: true,
+                        size: 8,
+                        x: 2,
+                        y: 2,
+                        color: "rgba(0,0,0,0.4)"
+                    }
+                },
+                interaction: {
+                    hover: true,                        // enables title tooltip on hover
+                    tooltipDelay: 80,
+                    navigationButtons: false,
+                    zoomView: true
+                }
+            }
+        );
+    }
+    
+    // ─────────────────────────────────────────────────────────────────
+    // VIEW 3: 
+    // ─────────────────────────────────────────────────────────────────
+    function initCards() {
+        const grid = document.getElementById("grid");
+        const search = document.getElementById("search");
+        const domainFilter = document.getElementById("domainFilter");
+
+        const domains = [...new Set(parsedCurriculumData.map(d => d.domain))];
+        domains.forEach(d => {
+            const opt = document.createElement("option");
+            opt.value = d;
+            opt.textContent = d;
+            domainFilter.appendChild(opt);
+        });
+
+        window.filterCards = function () {
+            const q = search.value.toLowerCase();
+            const filterDomain = domainFilter.value;
+            grid.innerHTML = "";
+            let matchCount = 0;
+
+            parsedCurriculumData.forEach(topicObj => {
+                if (filterDomain !== "all" && topicObj.domain !== filterDomain) return;
+
+                const domainIdx = domains.indexOf(topicObj.domain);
+                const clusterColor = palette[domainIdx % palette.length].base;
+                const cleanTopicName = topicObj.topic.replace(/^\d+\.\s*/, '');
+
+                topicObj.subjects.forEach(sub => {
+                    const searchString = `${sub.name} ${cleanTopicName} ${sub.desc}`.toLowerCase();
+                    if (searchString.includes(q)) {
+                        matchCount++;
+                        const card = document.createElement("div");
+                        card.className = "card";
+                        card.style.borderLeft = `4px solid ${clusterColor}`;
+                        card.innerHTML = `
+                            <div class="id" style="color:${clusterColor}">${sub.id}</div>
+                            <h3 style="color:var(--text)">${sub.name}</h3>
+                            <p>${sub.desc}</p>
+                            <span class="phase-tag" style="color:${clusterColor};background:${clusterColor}20">
+                                ${topicObj.domain} • ${cleanTopicName}
+                            </span>`;
+                        card.onclick = () => openModal(sub, clusterColor);
+                        grid.appendChild(card);
+                    }
+                });
+            });
+
+            if (matchCount === 0) {
+                grid.innerHTML = '<div class="empty">No matching subjects found. Try another search.</div>';
+            }
+        };
+
+        search.addEventListener("input", window.filterCards);
+        domainFilter.addEventListener("change", window.filterCards);
+        window.filterCards();
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // VIEW 4: 
+    // ─────────────────────────────────────────────────────────────────
+    function initVisual() {
+        const grid = document.getElementById("visual-grid");
+        let numTopics = 0;
+        let numSubs = 0;
+
+        const domains = [...new Set(parsedCurriculumData.map(d => d.domain))];
+
+        domains.forEach((domainName, idx) => {
+            const clusterColor = palette[idx % palette.length].base;
+            const clusterBg = palette[idx % palette.length].rgba.replace('0.75', '0.15');
+
+            const topics = parsedCurriculumData.filter(d => d.domain === domainName);
+            numTopics += topics.length;
+
+            const pills = topics.map(t => {
+                const cleanTopicName = t.topic.replace(/^\d+\.\s*/, '');
+                return `<span class="topic-pill" style="color:${clusterColor};background:${clusterBg};border:1px solid ${clusterColor}33">${cleanTopicName}</span>`;
+            }).join('');
+
+            const allSubs = topics.flatMap(t => t.subjects);
+            numSubs += allSubs.length;
+
+            const tags = allSubs.slice(0, 10).map(s =>
+                `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid ${clusterColor}33;color:${clusterColor}">${s.name}</span>`
+            ).join('') + (allSubs.length > 10
+                ? `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid ${clusterColor}33;color:${clusterColor}">+${allSubs.length - 10} more</span>`
+                : '');
+
+            const card = document.createElement('div');
+            card.className = 'visual-card';
+            card.innerHTML = `
+              <div class="visual-card-header">
+                <div>
+                  <h3 style="color:${clusterColor}">${domainName}</h3>
+                  <div style="font-size:0.7rem;color:var(--muted);margin-top:2px">
+                    ${topics.length} topics · ${allSubs.length} subjects
+                  </div>
+                </div>
+              </div>
+              <div class="topic-pill-list">${pills}</div>
+              <div class="moon-tag-list">${tags}</div>`;
+            grid.appendChild(card);
+        });
+
+        document.getElementById('stat-domains').textContent = domains.length;
+        document.getElementById('stat-topics').textContent = numTopics;
+        document.getElementById('stat-subs').textContent = numSubs;
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // BOOTSTRAP: Initialize all views on page load
+    // ─────────────────────────────────────────────────────────────────
+    window.onload = () => {
+        if (parsedCurriculumData.length > 0) {
+            initVectorSpace();
+            initMindmap();
+            initCards();
+            initVisual();
+        }
+    };
+
+    // ─────────────────────────────────────────────────────────────────
+    // SEARCH HELPERS (unchanged)
+    // ─────────────────────────────────────────────────────────────────
+    function toggleClearButton(value) {
+        document.getElementById('custom-clear-btn').style.display =
+            value.length > 0 ? 'block' : 'none';
+    }
+
+    function clearSearch() {
+        const input = document.getElementById('search');
+        input.value = '';
+        toggleClearButton('');
+        if (typeof filterCards === 'function') {
+            filterCards();
+        } else {
+            input.dispatchEvent(new Event('input'));
+        }
+        input.focus();
+    }
+</script>
+
+</body>
+</html>
