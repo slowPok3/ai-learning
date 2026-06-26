@@ -166,7 +166,11 @@
             user-select: none;
             font-family: Arial, sans-serif;
             font-weight: bold;
-            z-index: 105; /* Ensures it sits above everything */
+            
+            /* --- ADDED/UPDATED FOR MOBILE INTERACTION --- */
+            z-index: 110;          /* Forces it to layer ABOVE the text input box */
+            pointer-events: all;   /* Guarantees mobile OS prioritizes the touch event here */
+            padding: 5px;          /* Increases touch target size for fingers */
         }
 
 
