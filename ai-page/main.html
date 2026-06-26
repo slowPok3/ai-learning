@@ -883,6 +883,32 @@
             initCards();
             initVisual();
         }
+    }
+
+    // Shows the X when typing, hides it when blank
+    function toggleClearButton(value) {
+        const clearBtn = document.getElementById('custom-clear-btn');
+        if (value.length > 0) {
+            clearBtn.style.display = 'block';
+        } else {
+            clearBtn.style.display = 'none';
+        }
+    }
+
+    // Clears the text and runs your existing filter to restore all cards
+    function clearSearch() {
+        const input = document.getElementById('search-input');
+        input.value = '';
+        toggleClearButton('');
+        
+        // Trigger the filtering process to show all cards again
+        if (typeof filterCards === 'function') {
+            filterCards();
+        } else {
+            // Fallback: If filterCards doesn't exist, manually fire the input event
+            input.dispatchEvent(new Event('input'));
+        }
+        input.focus();
     };
 </script>
 </body>
