@@ -773,7 +773,7 @@
     // --- 3. Learning Cards Logic ---
     function initCards() {
         const grid = document.getElementById("grid");
-        const search = document.getElementById("search");
+        const search = document.getElementById("search-input"); // Matches your modern HTML ID
         const domainFilter = document.getElementById("domainFilter");
 
         const domains = [...new Set(parsedCurriculumData.map(d => d.domain))];
@@ -784,7 +784,8 @@
             domainFilter.appendChild(opt);
         });
 
-        function render() {
+        // 1. Define and expose filterCards globally so the HTML 'oninput' attribute finds it perfectly!
+        window.filterCards = function() {
             const q = search.value.toLowerCase();
             const filterDomain = domainFilter.value;
             grid.innerHTML = "";
@@ -822,9 +823,12 @@
             }
         }
 
-        search.addEventListener("input", render);
-        domainFilter.addEventListener("change", render);
-        render(); 
+        // 2. Attach internal event listeners using the newly exposed global function
+        search.addEventListener("input", window.filterCards);
+        domainFilter.addEventListener("change", window.filterCards);
+        
+        // Initial build
+        window.filterCards(); 
     }
 
     // --- 4. Universe at a Glance (Visual) Logic ---
