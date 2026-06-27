@@ -4,6 +4,7 @@
 // Because browsers block loading standard .md files directly from your computer,
 // wrapping the Markdown inside a JavaScript variable (`curriculumMarkdown`)
 // allows it to load seamlessly without needing a local web server!
+// DO NOT USE LEADING NUMBERS IN HEADINGS (e.g., `## 1. Heading H2`, `### 1. Heading H3`).
 
 const curriculumMarkdown = `
 
