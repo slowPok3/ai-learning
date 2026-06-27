@@ -165,13 +165,18 @@
             width: var(--panel-width);
             height: calc(100% - 60px); 
             background: var(--card);
-            border-left: 1px solid #334155;
+            
+            /* --- CHANGE THIS LINE FOR THE DYNAMIC BORDER --- */
+            border-left: 4px solid var(--accent); /* Thick left accent border */
+            
             box-shadow: -10px 0 30px rgba(0, 0, 0, 0.3);
             z-index: 1500;
             padding: 2.5rem 1.5rem 1.5rem 1.5rem;
             box-sizing: border-box;
             overflow-y: auto;
-            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            
+            /* --- ADD PROPER TRANSITIONS FOR COLOR CHANGES --- */
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease;
         }
 
         #side-panel.open {
@@ -438,6 +443,9 @@
     }
 
     function openModal(sub, color) {
+        // Dynamically apply the subject's domain color to the side panel's border
+        document.getElementById('side-panel').style.setProperty('--accent', color);
+
         const html = `
             <div class="id" style="color:${color};font-size:0.8rem;letter-spacing:1px">${sub.id}</div>
             <h2 style="color:${color};margin-top:0.5rem;margin-bottom:1rem;">${sub.name}</h2>
@@ -455,6 +463,13 @@
         const domainData = parsedCurriculumData.filter(d => d.domain === domainName);
         if (domainData.length === 0) return;
 
+        const domainNames = [...new Set(parsedCurriculumData.map(d => d.domain))];
+        const colorIndex = domainNames.indexOf(domainName);
+        const domainColor = palette[colorIndex % palette.length].base;
+
+        // Dynamically apply the domain's unique color to the side panel's border
+        document.getElementById('side-panel').style.setProperty('--accent', domainColor);
+
         let topicsHtml = '';
         domainData.forEach(topicObj => {
             const cleanTopicName = topicObj.topic.replace(/^\d+\.\s*/, '');
@@ -469,10 +484,6 @@
                 <ul style="padding-left:15px;margin:0;">${subjectsHtml}</ul>
             `;
         });
-
-        const domainNames = [...new Set(parsedCurriculumData.map(d => d.domain))];
-        const colorIndex = domainNames.indexOf(domainName);
-        const domainColor = palette[colorIndex % palette.length].base;
 
         const html = `
             <h2 style="color:${domainColor};margin-top:0;margin-bottom:1rem;font-size:1.4rem;">${domainName}</h2>
