@@ -1,4 +1,4 @@
-// course-curriculum.js
+// course-curriculum-AI.js
 
 // This file contains your curriculum in an easy-to-update Markdown format.
 // Because browsers block loading standard .md files directly from your computer,
@@ -264,6 +264,10 @@ const curriculumMarkdown = `
 - Multi-head attention: Running several attention mechanisms in parallel to capture different patterns.
 - Positional encoding: Giving Transformers a sense of order without processing things sequentially.
 
+###    Advanced Architectures
+- Mixture of Experts (MoE): Utilizing sparse routing to dynamically activate specialized parameter sub-networks.
+- State Space Models (SSMs) & Mamba: Breaking quadratic complexity barriers for linear-time sequence handling.
+
 ###    Transfer Learning
 - Pre-trained models: Leveraging massive models that have already learned general features.
 - Fine-tuning: Gently tweaking a pre-trained model to excel at your specific task.
@@ -312,6 +316,8 @@ const curriculumMarkdown = `
 - Planning: Empowering models to break complex goals down into sequential steps.
 - Memory: Giving agents the ability to remember past interactions and context.
 - Multi-agent: Designing systems where different specialized AI personas collaborate.
+- Structured Outputs: Enforcing rigid data validation schemas (JSON/Pydantic) for deterministic API control.
+- Model Context Protocol (MCP): Open-standard protocol architectures linking clients, servers, and models uniformly.
 
 ## ML Engineering
 
@@ -342,6 +348,8 @@ const curriculumMarkdown = `
 - GPUs & TPUs: Specialized hardware accelerators designed for parallel mathematical operations.
 - Distributed training: Splitting massive model training workloads across hundreds of chips.
 - Quantization: Shrinking model precision to make them faster and cheaper to run.
+- Local Inference Engines: Setting up optimized on-premises edge infrastructure utilizing Ollama or vLLM runtimes.
+- Compute Sizing: Profiling model param scaling parameters directly against local hardware VRAM allocations.
 
 ## Ethics & Safety
 
