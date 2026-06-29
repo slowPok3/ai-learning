@@ -314,8 +314,8 @@
             <h1>🔍 Subject Explorer</h1>
         </div>
         <div class="controls">            
-            <div class="search-wrapper">
-                <input type="text" id="search" placeholder="Search subjects..." oninput="filterCards(); toggleClearButton(this.value)">
+            <div class="search-wrapper">                
+                <input type="text" id="search" placeholder="Search subjects..." oninput="debouncedFilter(); toggleClearButton(this.value)">
                 <span id="custom-clear-btn" onclick="clearSearch()">&times;</span>
             </div>            
 
@@ -358,6 +358,15 @@
     let mindmapLoopId = null;
     let pulseProgress = 0;
     let selectedMindmapNodeId = null; 
+
+    // ── Batch B: lazy-init + loop control ───────────────────────────
+    // Tracks which views have been built (so we build each only once).
+    const viewInitialized = { constellation: false, mindmap: false, visual: false, cards: false };
+    // Controls the 3D render loop: true only while the constellation view is visible.
+    let constellationActive = false;
+    // Will hold a function (set inside initVectorSpace) that restarts the 3D loop.
+    let resumeConstellationLoop = null;
+    let resizeConstellationFn = null;   // set inside initVectorSpace; lets panel re-fit the 3D view
 
     // ─────────────────────────────────────────────────────────────────
     // KEYBOARD NAVIGATION
@@ -440,10 +449,49 @@
         return data;
     }
 
+// Lightweight validator: warns (in console) about silent content problems
+    // so a malformed curriculum file doesn't fail invisibly.
+    function validateCurriculum(mdStr, parsed) {
+        const warnings = [];
+        if (!parsed || parsed.length === 0) {
+            warnings.push('No domains/topics parsed. Check that the file uses "## Domain" and "### Topic" headings.');
+        }
+        const lines = mdStr.split('\n');
+        let sawDomain = false, sawTopic = false;
+        lines.forEach((raw, i) => {
+            const line = raw.trim();
+            if (line.startsWith('## ') && !line.startsWith('### ')) sawDomain = true;
+            else if (line.startsWith('### ') && !line.startsWith('#### ')) sawTopic = true;
+            else if (line.startsWith('- ')) {
+                if (!sawDomain || !sawTopic) {
+                    warnings.push(`Line ${i + 1}: subject "${line.slice(2).trim()}" appears before any Domain/Topic and will be DROPPED.`);
+                }
+                const body = line.slice(2);
+                if (body.indexOf(':') === -1) {
+                    warnings.push(`Line ${i + 1}: subject "${body.trim()}" has no ":" description.`);
+                }
+            }
+        });
+        // Duplicate subject names within a topic
+        parsed.forEach(t => {
+            const names = t.subjects.map(s => s.name.toLowerCase());
+            const dupes = names.filter((n, idx) => names.indexOf(n) !== idx);
+            if (dupes.length) warnings.push(`Topic "${t.topic}" has duplicate subject(s): ${[...new Set(dupes)].join(', ')}`);
+        });
+
+        if (warnings.length) {
+            console.warn(`%c⚠️ Curriculum validation: ${warnings.length} issue(s)`, 'color:#f59e0b;font-weight:bold');
+            warnings.forEach(w => console.warn('  • ' + w));
+        } else {
+            console.log('%c✓ Curriculum validated, no issues.', 'color:#10b981;font-weight:bold');
+        }
+    }
+
     if (typeof curriculumMarkdown !== 'undefined') {
         const courseTitle = extractCourseTitle(curriculumMarkdown);
         document.title = courseTitle;
         parsedCurriculumData = parseMarkdownToData(curriculumMarkdown);
+        validateCurriculum(curriculumMarkdown, parsedCurriculumData);
     } else {
         alert('Error: Could not load course-curriculum.js. Make sure it is in the same folder.');
     }
@@ -465,16 +513,21 @@
     // PANELS & VIEWS
     // ─────────────────────────────────────────────────────────────────
     function openSidePanel(htmlContent) {
+        const panel = document.getElementById('side-panel');
         document.getElementById('panel-content').innerHTML = htmlContent;
-        document.getElementById('side-panel').classList.add('open');
+        panel.scrollTop = 0;                 // ← reset to top so the title is always visible
+        panel.classList.add('open');
         document.body.classList.add('panel-open');
         if (networkInstance) networkInstance.setSize();
+        // Re-fit the 3D view after the panel's 0.3s slide finishes.
+        setTimeout(() => { if (resizeConstellationFn) resizeConstellationFn(); }, 320);
     }
 
     function closeSidePanel() {
         document.getElementById('side-panel').classList.remove('open');
         document.body.classList.remove('panel-open');
         setTimeout(() => { if (networkInstance) networkInstance.setSize(); }, 300);
+        setTimeout(() => { if (resizeConstellationFn) resizeConstellationFn(); }, 320);
     }
 
     function openModal(sub, color) {
@@ -534,16 +587,40 @@
         document.querySelectorAll('.nav-dot').forEach(d => d.classList.remove('active'));
         document.getElementById('dot-' + viewId).classList.add('active');
 
+        // ── Pause everything first; the block below re-enables only what's needed ──
+        // Stop the 3D render loop whenever we're not on the constellation view.
+        constellationActive = (viewId === 'constellation');
+        // Stop the mindmap loop whenever we're not on the mindmap view.
+        if (viewId !== 'mindmap' && mindmapLoopId) {
+            cancelAnimationFrame(mindmapLoopId);
+            mindmapLoopId = null;
+        }
+
+        // ── Lazy-init: build the view the first time it's opened ──
+        if (!viewInitialized[viewId]) {
+            if (viewId === 'constellation') initVectorSpace();
+            else if (viewId === 'mindmap')  initMindmap();
+            else if (viewId === 'visual')   initVisual();
+            else if (viewId === 'cards')    initCards();
+            viewInitialized[viewId] = true;
+        }
+
+        // ── Resume the correct loop for the now-active view ──
+        if (viewId === 'constellation' && resumeConstellationLoop) {
+            resumeConstellationLoop();   // restart the 3D animation loop
+        }
+
         if (viewId === 'mindmap' && networkInstance) {
             setTimeout(() => {
                 networkInstance.fit({ animation: { duration: 800, easingFunction: 'easeInOutQuad' } });
-                setMapAnimation(mapAnimationProfile);
+                setMapAnimation(mapAnimationProfile);   // this restarts the pulse/drift loop
             }, 100);
         }
 
         const pageNum = currentViewIndex + 1;
         document.getElementById('page-counter').textContent = ` ${pageNum}/${views.length}`;
     }
+
     function nextView() { switchView(views[(currentViewIndex + 1) % views.length]); }
     function prevView() { switchView(views[(currentViewIndex - 1 + views.length) % views.length]); }
 
@@ -552,15 +629,27 @@
     // ─────────────────────────────────────────────────────────────────
     function initVectorSpace() {
         const container = document.getElementById('vector-container');
+
+        // Measure the CONTAINER, not the window — so the scene stays correct
+        // when the side panel shrinks the view. Returns the live width/height.
+        function getContainerSize() {
+            const rect = container.getBoundingClientRect();
+            // Fallbacks guard against a 0x0 measurement if the view is hidden at init.
+            const w = rect.width  || window.innerWidth;
+            const h = rect.height || (window.innerHeight - 60);
+            return { w, h };
+        }
+
         const scene  = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 60), 0.1, 2000);
-        
-        const homePosition = { x: 0, y: 100, z: 320 };
+        const { w: initW, h: initH } = getContainerSize();
+        const camera = new THREE.PerspectiveCamera(60, initW / initH, 0.1, 2000);
+
+        const homePosition = { x: 0, y: 100, z: 420 };
         camera.position.set(homePosition.x, homePosition.y, homePosition.z);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight - 60);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(initW, initH);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -568,7 +657,7 @@
         controls.dampingFactor  = 0.05;
         controls.enablePan      = true;
         controls.minDistance    = 40;   
-        controls.maxDistance    = 800;  
+        controls.maxDistance    = 1100;
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.4));
         const pointLight = new THREE.PointLight(0xffffff, 1.2);
@@ -585,10 +674,12 @@
         scene.add(starField);
 
         function createNodeMesh(size, colorHex, emissiveHex, isMoon = false) {
-            const geo  = new THREE.SphereGeometry(size, 32, 32);
+            // Detail scaled by node size: tiny moons don't need 32x32 polygons
+            const seg  = isMoon ? 12 : 20;
+            const geo  = new THREE.SphereGeometry(size, seg, seg);
             const mat  = new THREE.MeshPhongMaterial({ color: colorHex, emissive: emissiveHex, emissiveIntensity: 0.5, shininess: 80 });
             const mesh    = new THREE.Mesh(geo, mat);
-            const haloGeo = new THREE.SphereGeometry(size * (isMoon ? 2.5 : 1.6), 24, 24);
+            const haloGeo = new THREE.SphereGeometry(size * (isMoon ? 2.5 : 1.6), 8, 8);
             const haloMat = new THREE.MeshBasicMaterial({ color: emissiveHex, transparent: true, opacity: isMoon ? 0.25 : 0.15 });
             mesh.add(new THREE.Mesh(haloGeo, haloMat));
             return mesh;
@@ -622,7 +713,13 @@
         });
 
         const domainNames  = Object.keys(domainsMap);
-        const domainRadius = 140;
+
+        // Scale the spread by how many domains there are, so clusters don't
+        // overlap regardless of which curriculum is loaded. More domains on a
+        // sphere = points naturally closer, so we grow the radius to compensate.
+        const baseRadius   = 180;                       // ← spacing dial (was 140)
+        const domainRadius = baseRadius + domainNames.length * 8;
+
         const orbitPivots  = [];
         const nodeMeshes   = [];
         let   hoveredMesh  = null;
@@ -638,14 +735,17 @@
             const by0 = domainRadius * Math.cos(phi);
             const bz0 = domainRadius * Math.sin(theta) * Math.sin(phi);
 
+
+            
+
             clusterGroup.userData = {
                 bx0, by0, bz0,
-                ampX: 18 + Math.random() * 22,
-                ampY: 14 + Math.random() * 18,
-                ampZ: 18 + Math.random() * 22,
-                spX:  (0.0008 + Math.random() * 0.0012) * (Math.random() < 0.5 ? 1 : -1),
-                spY:  (0.0006 + Math.random() * 0.0010) * (Math.random() < 0.5 ? 1 : -1),
-                spZ:  (0.0008 + Math.random() * 0.0012) * (Math.random() < 0.5 ? 1 : -1),
+                ampX: 8 + Math.random() * 10,
+                ampY: 6 + Math.random() * 8,
+                ampZ: 8 + Math.random() * 10,
+                spX:  (0.0004 + Math.random() * 0.0006) * (Math.random() < 0.5 ? 1 : -1),
+                spY:  (0.0003 + Math.random() * 0.0005) * (Math.random() < 0.5 ? 1 : -1),
+                spZ:  (0.0004 + Math.random() * 0.0006) * (Math.random() < 0.5 ? 1 : -1),
                 phX:  Math.random() * Math.PI * 2,
                 phY:  Math.random() * Math.PI * 2,
                 phZ:  Math.random() * Math.PI * 2,
@@ -744,9 +844,13 @@
         const tooltip   = document.getElementById('tooltip');
 
         container.addEventListener('mousemove', e => {
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / (window.innerHeight - 60)) * 2 + 1;
+            // Convert pointer to normalized device coords RELATIVE TO THE CANVAS.
+            const rect = container.getBoundingClientRect();
+            mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+            mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
+
+
             const hits = raycaster.intersectObjects(nodeMeshes);
 
             if (hoveredMesh) {
@@ -805,9 +909,12 @@
 
         container.addEventListener('touchstart', e => {
             if (e.touches.length === 1) {
-                mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(e.touches[0].clientY / (window.innerHeight - 60)) * 2 + 1;
+                const rect = container.getBoundingClientRect();
+                mouse.x =  ((e.touches[0].clientX - rect.left) / rect.width)  * 2 - 1;
+                mouse.y = -((e.touches[0].clientY - rect.top)  / rect.height) * 2 + 1;
                 raycaster.setFromCamera(mouse, camera);
+
+
                 const hits = raycaster.intersectObjects(nodeMeshes);
                 if (hits.length && hits[0].object.userData.type === 'subject') {
                     openModal(hits[0].object.userData.fullObj, hits[0].object.userData.color);
@@ -826,8 +933,11 @@
         }, 4000);
 
         let time = 0;
+        let constellationLoopId = null;
         function animate() {
-            requestAnimationFrame(animate);
+            // Stop the loop entirely when this view isn't visible (saves GPU/battery).
+            if (!constellationActive) { constellationLoopId = null; return; }
+            constellationLoopId = requestAnimationFrame(animate);
             time++;
 
             starField.rotation.y = time * 0.00008;
@@ -871,13 +981,29 @@
             controls.update();
             renderer.render(scene, camera);
         }
+        // Expose a resume function so switchView() can restart the loop
+        // when the user returns to the constellation view.
+        resumeConstellationLoop = function () {
+            if (constellationActive && constellationLoopId === null) {
+                animate();
+            }
+        };
+
+        // Start it now (initVectorSpace only runs when constellation is active).
+        constellationActive = true;
         animate();
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / (window.innerHeight - 60);
+        // Recompute from the container so resizes AND panel open/close are handled.
+        function resizeConstellation() {
+            const { w, h } = getContainerSize();
+            camera.aspect = w / h;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight - 60);
-        });
+            renderer.setSize(w, h);
+        }
+        window.addEventListener('resize', resizeConstellation);
+
+        // Expose it so opening/closing the side panel can trigger a re-fit too.
+        resizeConstellationFn = resizeConstellation;
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -1122,7 +1248,9 @@
             pulseProgress = 0; 
         }
         
-        networkInstance.startSimulation();
+        // Pulse only needs a redraw to re-trigger the afterDrawing glow.
+        // We no longer call startSimulation() every frame, so physics can
+        // settle and the CPU stays cool. (Drift mode still simulates.)
         networkInstance.redraw();
         mindmapLoopId = requestAnimationFrame(runMindmapPulseLoop);
     }
@@ -1190,7 +1318,8 @@
             }
         };
 
-        search.addEventListener("input", window.filterCards);
+        // Note: the inline oninput now calls debouncedFilter(), so we do NOT
+        // add a second "input" listener here (that caused double rendering).
         domainFilter.addEventListener("change", window.filterCards);
         window.filterCards();
     }
@@ -1253,12 +1382,20 @@
     // ─────────────────────────────────────────────────────────────────
     window.onload = () => {
         if (parsedCurriculumData.length > 0) {
-            initVectorSpace();
-            initMindmap();
-            initCards();
-            initVisual();
+            // Build & activate only the default view; others init lazily on first visit.
+            switchView('constellation');
         }
     };
+
+    // Debounce: wait until the user pauses typing (~150ms) before rebuilding
+    // the card grid, so fast typing doesn't trigger a rebuild on every keystroke.
+    let _filterTimer = null;
+    function debouncedFilter() {
+        clearTimeout(_filterTimer);
+        _filterTimer = setTimeout(() => {
+            if (typeof filterCards === 'function') filterCards();
+        }, 150);
+    }
 
     function toggleClearButton(value) {
         document.getElementById('custom-clear-btn').style.display = value.length > 0 ? 'block' : 'none';
