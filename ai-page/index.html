@@ -649,7 +649,13 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(initW, initH);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        // Cap pixel ratio to balance sharpness vs. performance.
+        // Mobile screens have very high DPR (often 3+); capping too low looks
+        // jagged when zoomed in. 2.5 keeps spheres/halos crisp without the full
+        // (expensive) native ratio. Desktop rarely exceeds 2 anyway.
+        const isTouch = ('ontouchstart' in window);
+        const dprCap  = isTouch ? 2.5 : 2;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
         container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -679,7 +685,7 @@
             const geo  = new THREE.SphereGeometry(size, seg, seg);
             const mat  = new THREE.MeshPhongMaterial({ color: colorHex, emissive: emissiveHex, emissiveIntensity: 0.5, shininess: 80 });
             const mesh    = new THREE.Mesh(geo, mat);
-            const haloGeo = new THREE.SphereGeometry(size * (isMoon ? 2.5 : 1.6), 8, 8);
+            const haloGeo = new THREE.SphereGeometry(size * (isMoon ? 2.5 : 1.6), 16, 16);
             const haloMat = new THREE.MeshBasicMaterial({ color: emissiveHex, transparent: true, opacity: isMoon ? 0.25 : 0.15 });
             mesh.add(new THREE.Mesh(haloGeo, haloMat));
             return mesh;
@@ -904,8 +910,36 @@
             }
         });
 
-        // Touch: tapping a moon does not open the panel (consistent with desktop).
-        // Removed by design.
+        // ── Mobile: tap a moon to reveal its name (no hover on touch) ──
+        // Shows the tooltip at the tap point, then auto-hides after a moment.
+        let touchTooltipTimer = null;
+        container.addEventListener('touchstart', e => {
+            if (e.touches.length !== 1) return;   // ignore pinch/multi-touch (that's zoom)
+
+            const rect = container.getBoundingClientRect();
+            const tx = e.touches[0].clientX;
+            const ty = e.touches[0].clientY;
+            mouse.x =  ((tx - rect.left) / rect.width)  * 2 - 1;
+            mouse.y = -((ty - rect.top)  / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(nodeMeshes);
+
+            if (hits.length) {
+                const ud = hits[0].object.userData;
+                const prefix = ud.type === 'domain' ? '🌟 ' : ud.type === 'topic' ? '🪐 ' : '🌙 ';
+                tooltip.innerHTML     = prefix + ud.label;
+                tooltip.style.left    = (tx + 14) + 'px';
+                tooltip.style.top     = (ty + 14) + 'px';
+                tooltip.style.display = 'block';
+
+                // Auto-dismiss after 2s (no "mouse-away" on touch to hide it).
+                clearTimeout(touchTooltipTimer);
+                touchTooltipTimer = setTimeout(() => { tooltip.style.display = 'none'; }, 2000);
+            } else {
+                tooltip.style.display = 'none';   // tapped empty space → hide
+            }
+        }, { passive: true });
 
         const hint = document.getElementById('hint');
         if ('ontouchstart' in window) {
