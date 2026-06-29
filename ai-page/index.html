@@ -882,13 +882,10 @@
             }
         });
 
-        container.addEventListener('click', e => {
-            raycaster.setFromCamera(mouse, camera);
-            const hits = raycaster.intersectObjects(nodeMeshes);
-            if (hits.length && hits[0].object.userData.type === 'subject') {
-                openModal(hits[0].object.userData.fullObj, hits[0].object.userData.color);
-            }
-        });
+        // Cosmos view is intentionally ambient: hover shows the name (handled in
+        // mousemove). Clicking a moon does NOT open the side panel here — detail
+        // views (Explorer / Mission Control) are where subjects are inspected.
+        // (Click handler removed by design.)
 
         container.addEventListener('dblclick', e => {
             raycaster.setFromCamera(mouse, camera);
@@ -907,20 +904,8 @@
             }
         });
 
-        container.addEventListener('touchstart', e => {
-            if (e.touches.length === 1) {
-                const rect = container.getBoundingClientRect();
-                mouse.x =  ((e.touches[0].clientX - rect.left) / rect.width)  * 2 - 1;
-                mouse.y = -((e.touches[0].clientY - rect.top)  / rect.height) * 2 + 1;
-                raycaster.setFromCamera(mouse, camera);
-
-
-                const hits = raycaster.intersectObjects(nodeMeshes);
-                if (hits.length && hits[0].object.userData.type === 'subject') {
-                    openModal(hits[0].object.userData.fullObj, hits[0].object.userData.color);
-                }
-            }
-        }, { passive: true });
+        // Touch: tapping a moon does not open the panel (consistent with desktop).
+        // Removed by design.
 
         const hint = document.getElementById('hint');
         if ('ontouchstart' in window) {
