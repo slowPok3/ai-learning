@@ -679,6 +679,58 @@
         const starField = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.5 }));
         scene.add(starField);
 
+        // ── Layer 2: shooting-star streaks ──────────────────────────────
+        // A small reusable pool of glowing line "streaks". Normally invisible;
+        // we launch one across the view at random intervals. Reused (not
+        // recreated) to avoid per-spawn allocation / GC churn.
+        const STREAK_POOL_SIZE = 5;
+        const streaks = [];
+        for (let i = 0; i < STREAK_POOL_SIZE; i++) {
+            // Two points = a short line segment we'll position each frame.
+            const g = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(0, 0, 0)
+            ]);
+            const m = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+            const line = new THREE.Line(g, m);
+            line.visible = false;
+            line.userData = { active: false, pos: new THREE.Vector3(), vel: new THREE.Vector3(), life: 0 };
+            scene.add(line);
+            streaks.push(line);
+        }
+
+        // Launch one streak from a random edge, flying across the view.
+        function launchStreak() {
+            const s = streaks.find(st => !st.userData.active);
+            if (!s) return;   // all in use; skip this launch
+
+            // Spawn far out on a random side, aimed roughly across the scene.
+            const spread = 700;
+            const startX = (Math.random() - 0.5) * 2 * spread;
+            const startY = (Math.random() - 0.5) * spread;
+            const startZ = -spread * 0.5 - Math.random() * spread;   // start behind
+            s.userData.pos.set(startX, startY, startZ);
+
+            // Velocity: mostly forward (toward camera-ish) with sideways drift.
+            const speed = 6 + Math.random() * 6;
+            s.userData.vel.set(
+                (Math.random() - 0.5) * speed * 0.6,
+                (Math.random() - 0.5) * speed * 0.4,
+                speed                                  // +Z = travel toward viewer
+            );
+            s.userData.life = 1;          // full brightness, fades to 0
+            s.userData.active = true;
+            s.visible = true;
+        }
+
+        // Schedule launches at randomized intervals (only while view is active).
+        let nextStreakAt = 0;   // a "time" counter threshold (time++ each frame)
+        function scheduleNextStreak() {
+            // ~4–9 seconds at ~60fps → 240–540 frames. Tune MIN/RANGE below.
+            nextStreakAt = time + 240 + Math.floor(Math.random() * 300);
+        }
+        // ────────────────────────────────────────────────────────────────
+
         function createNodeMesh(size, colorHex, emissiveHex, isMoon = false) {
             // Detail scaled by node size: tiny moons don't need 32x32 polygons
             const seg  = isMoon ? 12 : 20;
@@ -749,6 +801,8 @@
                 ampX: 8 + Math.random() * 10,
                 ampY: 6 + Math.random() * 8,
                 ampZ: 8 + Math.random() * 10,
+                
+
                 spX:  (0.0004 + Math.random() * 0.0006) * (Math.random() < 0.5 ? 1 : -1),
                 spY:  (0.0003 + Math.random() * 0.0005) * (Math.random() < 0.5 ? 1 : -1),
                 spZ:  (0.0004 + Math.random() * 0.0006) * (Math.random() < 0.5 ? 1 : -1),
@@ -756,6 +810,14 @@
                 phY:  Math.random() * Math.PI * 2,
                 phZ:  Math.random() * Math.PI * 2,
                 rotSpeedY: (0.0005 + Math.random() * 0.0008) * (Math.random() < 0.5 ? 1 : -1),
+
+                // ── Option C: slow orbital drift around the cosmic center ──
+                // Each system orbits (0,0,0) at its own gentle pace, so the whole
+                // cosmos slowly churns without anything escaping into the void.
+                cosmicAngle: Math.atan2(bz0, bx0),                 // current angle around center
+                cosmicRadius: Math.sqrt(bx0 * bx0 + bz0 * bz0),    // distance from center (preserved)
+                //cosmicSpeed: (0.00006 + Math.random() * 0.00008) * (Math.random() < 0.5 ? 1 : -1),
+                cosmicSpeed: 0.001 * (Math.random() < 0.5 ? 1 : -1),   // TEMP: obviously fast
                 type: 'cluster'
             };
 
@@ -850,10 +912,9 @@
         const tooltip   = document.getElementById('tooltip');
 
         container.addEventListener('mousemove', e => {
-            // Convert pointer to normalized device coords RELATIVE TO THE CANVAS.
-            const rect = container.getBoundingClientRect();
-            mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
-            mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+            // Use the cached rect (refreshed on resize) instead of measuring every frame.
+            mouse.x =  ((e.clientX - cachedRect.left) / cachedRect.width)  * 2 - 1;
+            mouse.y = -((e.clientY - cachedRect.top)  / cachedRect.height) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
 
 
@@ -916,11 +977,10 @@
         container.addEventListener('touchstart', e => {
             if (e.touches.length !== 1) return;   // ignore pinch/multi-touch (that's zoom)
 
-            const rect = container.getBoundingClientRect();
             const tx = e.touches[0].clientX;
             const ty = e.touches[0].clientY;
-            mouse.x =  ((tx - rect.left) / rect.width)  * 2 - 1;
-            mouse.y = -((ty - rect.top)  / rect.height) * 2 + 1;
+            mouse.x =  ((tx - cachedRect.left) / cachedRect.width)  * 2 - 1;
+            mouse.y = -((ty - cachedRect.top)  / cachedRect.height) * 2 + 1;
 
             raycaster.setFromCamera(mouse, camera);
             const hits = raycaster.intersectObjects(nodeMeshes);
@@ -959,13 +1019,54 @@
             constellationLoopId = requestAnimationFrame(animate);
             time++;
 
-            starField.rotation.y = time * 0.00008;
+            // Layer 1: constant gentle drift — a slow "cruising through space" feel.
+            // Tune STARFIELD_DRIFT (bigger = faster flow). 0.00008 was imperceptible.
+            starField.rotation.y = time * 0.00025;
+            starField.rotation.x = time * 0.00010;   // slight cross-axis = more organic
+
+            // Layer 2: time to launch a new streak?
+            if (time >= nextStreakAt) {
+                launchStreak();
+                scheduleNextStreak();
+            }
+
+            // Update any active streaks.
+            for (const s of streaks) {
+                if (!s.userData.active) continue;
+                const ud = s.userData;
+                ud.pos.add(ud.vel);
+                ud.life -= 0.012;          // fade speed (smaller = longer-lived)
+
+                // The line is drawn from current pos to a point "behind" it,
+                // creating the tail in the direction of travel.
+                const tail = ud.pos.clone().sub(ud.vel.clone().multiplyScalar(3));
+                const positions = s.geometry.attributes.position.array;
+                positions[0] = ud.pos.x;  positions[1] = ud.pos.y;  positions[2] = ud.pos.z;
+                positions[3] = tail.x;    positions[4] = tail.y;    positions[5] = tail.z;
+                s.geometry.attributes.position.needsUpdate = true;
+
+                s.material.opacity = Math.max(0, ud.life) * 0.9;
+
+                // Retire when faded out or flown past the camera.
+                if (ud.life <= 0 || ud.pos.z > 500) {
+                    ud.active = false;
+                    s.visible = false;
+                }
+            }
 
             orbitPivots.forEach(cl => {
                 const ud = cl.userData;
-                cl.position.x = ud.bx0 + Math.sin(time * ud.spX + ud.phX) * ud.ampX;
-                cl.position.y = ud.by0 + Math.cos(time * ud.spY + ud.phY) * ud.ampY; 
-                cl.position.z = ud.bz0 + Math.sin(time * ud.spZ + ud.phZ) * ud.ampZ;
+
+                // Layer 1 — slow orbital drift: advance this system's angle around
+                // the cosmic center, then recompute its anchor (radius unchanged).
+                ud.cosmicAngle += ud.cosmicSpeed;
+                const driftX = Math.cos(ud.cosmicAngle) * ud.cosmicRadius;
+                const driftZ = Math.sin(ud.cosmicAngle) * ud.cosmicRadius;
+
+                // Layer 2 — gentle sway: wobble around the (now drifting) anchor.
+                cl.position.x = driftX + Math.sin(time * ud.spX + ud.phX) * ud.ampX;
+                cl.position.y = ud.by0 + Math.cos(time * ud.spY + ud.phY) * ud.ampY;
+                cl.position.z = driftZ + Math.sin(time * ud.spZ + ud.phZ) * ud.ampZ;
                 cl.rotation.y += ud.rotSpeedY;
 
                 cl.children.forEach(child => {
@@ -1008,16 +1109,24 @@
             }
         };
 
+        // Schedule the first shooting star, then start the loop.
+        scheduleNextStreak();
+
         // Start it now (initVectorSpace only runs when constellation is active).
         constellationActive = true;
         animate();
 
-        // Recompute from the container so resizes AND panel open/close are handled.
+        // Cache the canvas rect so raycasting doesn't measure the DOM every frame.
+        // We only refresh it when the size can actually change (resize / re-fit).
+        let cachedRect = container.getBoundingClientRect();
+
+        // Recompute from the container so resizes (and panel re-fits) are handled.
         function resizeConstellation() {
             const { w, h } = getContainerSize();
             camera.aspect = w / h;
             camera.updateProjectionMatrix();
             renderer.setSize(w, h);
+            cachedRect = container.getBoundingClientRect();   // refresh cache after layout change
         }
         window.addEventListener('resize', resizeConstellation);
 
