@@ -275,8 +275,8 @@
 
     <div id="view-constellation" class="view active">
         <div class="page-header absolute-header">
-            <h1>🌌 Cosmic Atlas</h1>
-            <p>Navigate domains, topics, and subjects across the universe</p>
+            <h1>🌌 The Cosmos</h1>
+            <p>Explore domains, topics, and subjects among the stars</p>
         </div>
         <div id="tooltip"></div>
         <div id="hint">🖱️ Drag to rotate • Scroll to zoom • Right-click to pan</div>
@@ -285,8 +285,8 @@
 
     <div id="view-mindmap" class="view">
         <div class="page-header absolute-header">
-            <h1>🕸️ Neural Map</h1>
-            <p>An interactive network of domains, topics, and subjects</p>
+            <h1>🕸️ Knowledge Web</h1>
+            <p>See how everything connects</p>
         </div>
         <div id="mindmap-container"></div>        
         <div class="map-controls">
@@ -299,7 +299,7 @@
     <div id="view-visual" class="view">
         <div class="page-header">
             <h1>📡 Mission Control</h1>            
-            <p>Command every domain, topic, and subject at a glance</p>
+            <p>Survey every domain, topic, and subject at a glancee</p>
         </div>
         <div class="stats-bar">
             <div class="stat"><div class="stat-num" id="stat-domains">0</div><div class="stat-label">Domains</div></div>
@@ -315,7 +315,7 @@
         </div>
         <div class="controls">            
             <div class="search-wrapper">                
-                <input type="text" id="search" placeholder="Search subjects..." oninput="debouncedFilter(); toggleClearButton(this.value)">
+                <input type="text" id="search" placeholder="Search topics and subjects..." oninput="debouncedFilter(); toggleClearButton(this.value)">
                 <span id="custom-clear-btn" onclick="clearSearch()">&times;</span>
             </div>            
 
@@ -335,10 +335,10 @@
         <button class="nav-btn" onclick="switchView('constellation')" title="Home (Constellations)">🏠</button>
         <button class="nav-btn" onclick="prevView()" title="Previous View">&#8592;</button>
         <div class="dots-container">
-            <div id="dot-constellation" class="nav-dot active" onclick="switchView('constellation')" title="Constellations"></div>
-            <div id="dot-mindmap" class="nav-dot" onclick="switchView('mindmap')" title="Mindmap"></div>
-            <div id="dot-visual" class="nav-dot" onclick="switchView('visual')" title="Universe at a Glance"></div>
-            <div id="dot-cards" class="nav-dot" onclick="switchView('cards')" title="Learning Cards"></div>            
+            <div id="dot-constellation" class="nav-dot active" onclick="switchView('constellation')" title="The Cosmos"></div>
+            <div id="dot-mindmap" class="nav-dot" onclick="switchView('mindmap')" title="Knowledge Web"></div>
+            <div id="dot-visual" class="nav-dot" onclick="switchView('visual')" title="Mission Control"></div>
+            <div id="dot-cards" class="nav-dot" onclick="switchView('cards')" title="Subject Explorer"></div>
         </div>
         <button class="nav-btn" onclick="nextView()" title="Next View">&#8594;</button>
         <div id="page-counter" style="color: var(--muted); font-size: 0.85rem; margin-left: 10px; font-variant-numeric: tabular-nums;">1/4</div>
@@ -1003,7 +1003,7 @@
 
         const hint = document.getElementById('hint');
         if ('ontouchstart' in window) {
-            hint.textContent = '👆 Tap moon to explore • Pinch to zoom • Drag to rotate';
+            hint.textContent = '👆 Tap for names • Pinch to zoom • Drag to rotate';
         }
         setTimeout(() => {
             hint.style.transition = 'opacity 1.5s ease';
@@ -1442,7 +1442,7 @@
             });
 
             if (matchCount === 0) {
-                grid.innerHTML = '<div class="empty">No matching subjects found. Try another search.</div>';
+                grid.innerHTML = '<div class="empty">No matches found</div>';
             }
         };
 
