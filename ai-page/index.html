@@ -124,7 +124,15 @@
         .card:hover::before { opacity: 0.05; }
         .card .id { font-size: .7rem; color: var(--accent); letter-spacing: 1px; }
         .card h3 { margin: .3rem 0 .5rem; font-size: 1.1rem; color: var(--text); }
-        .card p { color: var(--muted); font-size: .9rem; line-height: 1.4; margin: 0; }
+        .card p {
+            color: var(--muted); font-size: .9rem; line-height: 1.4; margin: 0;
+            /* Clamp to 2 lines so cards stay a consistent height; "…" signals more. */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .phase-tag { display: inline-block; margin-top: .8rem; font-size: .7rem; background: rgba(56,189,248,.15); color: var(--accent); padding: .2rem .6rem; border-radius: 20px; }
         .empty { text-align: center; color: var(--muted); grid-column: 1/-1; padding: 2rem; }
         
@@ -785,6 +793,12 @@
         domainNames.forEach((domainName, i) => {
             const clusterColor = palette[i % palette.length];
             const clusterGroup = new THREE.Group();
+
+            // Give each star system its own 3D orientation so they don't all look
+            // parallel / identically aligned. A unique tilt per cluster adds variety.
+            clusterGroup.rotation.x = (Math.random() - 0.5) * Math.PI;   // ±90° tilt
+            clusterGroup.rotation.z = (Math.random() - 0.5) * Math.PI;
+            clusterGroup.rotation.y = Math.random() * Math.PI * 2;       // random spin
 
             const phi   = Math.acos(1 - 2 * (i + 0.5) / domainNames.length);
             const theta = Math.PI * (1 + Math.sqrt(5)) * i;
