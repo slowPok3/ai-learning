@@ -780,11 +780,165 @@
 
         const domainNames  = Object.keys(domainsMap);
 
-        // Scale the spread by how many domains there are, so clusters don't
-        // overlap regardless of which curriculum is loaded. More domains on a
-        // sphere = points naturally closer, so we grow the radius to compensate.
-        const baseRadius   = 180;                       // ← spacing dial (was 140)
-        const domainRadius = baseRadius + domainNames.length * 8;
+        /* ── Shapeless space scatter: star systems surround the viewer at varied
+        //    depths, with NO perceptible overall shape (no sphere/disk boundary).
+        //    Feels like being parked in open space. Scales to any domain count. ──
+        const N = domainNames.length;
+
+        // Worst-case reach of one cluster (keep in sync with pOrbit + amp below).
+        const MAX_CLUSTER_REACH = 90;    // outermost planet orbit
+        const MAX_CLUSTER_DRIFT = 35;    // max sway/orbital drift
+        const SAFETY_GAP        = 40;    // breathing room so bubbles never touch
+        const minSeparation     = 2 * (MAX_CLUSTER_REACH + MAX_CLUSTER_DRIFT) + SAFETY_GAP;
+
+        // Depth range (distance from the viewer/center). Moderate/wide for parallax:
+        // some systems near (whoosh past), some far (drift slowly) as you travel.
+        // Scales with cube-root of N so density stays natural as domains grow.
+        const scatterScale = Math.cbrt(N / 10);          // 1.0 at 10 domains
+        const nearDist = Math.max(150, minSeparation * 0.9) * scatterScale;
+        const farDist  = Math.max(420, minSeparation * 2.4) * scatterScale;
+        */
+
+        /* Uniform random direction in 3D (surrounding).
+        function randomDirection() {
+            const u = Math.random();
+            const v = Math.random();
+            const theta = 2 * Math.PI * u;               // around
+            const phi   = Math.acos(2 * v - 1);          // uniform in cos(phi) → even
+            return {
+                x: Math.sin(phi) * Math.cos(theta),
+                y: Math.sin(phi) * Math.sin(theta),
+                z: Math.cos(phi)
+            };
+        }
+        */
+        
+
+        /* Field-ahead direction: scatter clusters into a forward-facing cone (the
+        // region the camera looks toward), so the view feels full and purposeful —
+        // like flying toward a star field rather than floating in scattered space.
+        // Camera starts near +Z looking toward the origin, so "ahead" is toward -Z.
+        //const FORWARD_SPREAD = 0.72;   // 0 = laser-straight ahead, 1 = full hemisphere        
+        const FORWARD_SPREAD = 3.14;
+        function randomDirection() {
+            const theta = 2 * Math.PI * Math.random();          // around the forward axis
+            // cosPhi near 1 = tightly forward; we allow a cone by limiting how far
+            // off-axis clusters can go. Larger FORWARD_SPREAD = wider fan.
+            const cosPhi = 1 - Math.random() * FORWARD_SPREAD;  // biased toward "ahead"
+            const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
+            return {
+                x: sinPhi * Math.cos(theta),
+                y: sinPhi * Math.sin(theta) * 0.7,   // slightly flatten vertical spread
+                z: -cosPhi                            // -Z = ahead (toward where camera looks)
+            };
+        }
+        */
+
+
+
+        // ── Unified cosmos placement (one helper, one dial) ────────────────
+        // `spread` blends the view from "field ahead" to "surround":
+        //   ~0.5 = tight field ahead      ~1.0 = forward hemisphere
+        //   ~1.5 = wide / partly around    2.0 = full 360° surround
+        // Everything else (depth range, no-collision spacing) is passed in.
+        function computeClusterPositions(count, opts) {
+            const spread        = opts.spread;
+            const nearDist      = opts.nearDist;
+            const farDist       = opts.farDist;
+            const minSeparation = opts.minSeparation;
+            const verticalScale = (opts.verticalScale != null) ? opts.verticalScale : 0.7;
+
+            function randomDirection() {
+                const theta  = 2 * Math.PI * Math.random();
+                const cosPhi = 1 - Math.random() * spread;    // the ahead↔surround dial
+                const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
+                return {
+                    x: sinPhi * Math.cos(theta),
+                    y: sinPhi * Math.sin(theta) * verticalScale,
+                    z: -cosPhi                                 // -Z = ahead of the camera
+                };
+            }
+
+            const positions = [];
+            for (let p = 0; p < count; p++) {
+                let placed = null;
+                for (let attempt = 0; attempt < 200; attempt++) {
+                    const dir  = randomDirection();
+                    const dist = nearDist + Math.random() * (farDist - nearDist);
+                    const cand = { x: dir.x * dist, y: dir.y * dist, z: dir.z * dist };
+                    const ok = positions.every(pos => {
+                        const dx = pos.x - cand.x, dy = pos.y - cand.y, dz = pos.z - cand.z;
+                        return Math.sqrt(dx*dx + dy*dy + dz*dz) >= minSeparation;
+                    });
+                    if (ok) { placed = cand; break; }
+                }
+                if (!placed) {   // extremely crowded fallback — push farther, still no overlap
+                    const dir = randomDirection();
+                    const dist = farDist + minSeparation * positions.length * 0.15;
+                    placed = { x: dir.x * dist, y: dir.y * dist, z: dir.z * dist };
+                }
+                positions.push(placed);
+            }
+            return positions;
+        }
+
+
+        // Cosmos sizing + no-collision spacing (scales with domain count).
+        const N = domainNames.length;
+        const MAX_CLUSTER_REACH = 90;    // keep in sync with pOrbit below
+        const MAX_CLUSTER_DRIFT = 35;    // keep in sync with amp below
+        const SAFETY_GAP        = 40;
+        const minSeparation     = 2 * (MAX_CLUSTER_REACH + MAX_CLUSTER_DRIFT) + SAFETY_GAP;
+
+        const scatterScale = Math.cbrt(N / 10);
+        const nearDist = Math.max(150, minSeparation * 0.9) * scatterScale;
+        const farDist  = Math.max(420, minSeparation * 2.4) * scatterScale;
+
+        // ── THE ONE DIAL: change COSMOS_SPREAD to shift the whole view ──
+        // 0.5 ≈ field ahead   •   1.5 ≈ your current look   •   2.0 ≈ full surround
+        const COSMOS_SPREAD = 1.2;
+        const clusterPositions = computeClusterPositions(N, {
+            spread: COSMOS_SPREAD,
+            nearDist: nearDist,
+            farDist: farDist,
+            minSeparation: minSeparation,
+            verticalScale: 0.7
+        });
+
+
+                
+        
+
+        /* Place all clusters up front using rejection sampling so none overlap.
+        const clusterPositions = [];
+        for (let p = 0; p < N; p++) {
+            let placed = null;
+            for (let attempt = 0; attempt < 200; attempt++) {   // try up to 200x
+                const dir  = randomDirection();
+                const dist = nearDist + Math.random() * (farDist - nearDist);
+                const cand = { x: dir.x * dist, y: dir.y * dist, z: dir.z * dist };
+
+                // Accept if far enough from every already-placed cluster.
+                const ok = clusterPositions.every(pos => {
+                    const dx = pos.x - cand.x, dy = pos.y - cand.y, dz = pos.z - cand.z;
+                    return Math.sqrt(dx*dx + dy*dy + dz*dz) >= minSeparation;
+                });
+                if (ok) { placed = cand; break; }
+            }
+            // Fallback: if we couldn't satisfy separation (very crowded), push it out
+            // a bit farther so it still doesn't collide, rather than failing.
+            if (!placed) {
+                const dir = randomDirection();
+                const dist = farDist + minSeparation * clusterPositions.length * 0.15;
+                placed = { x: dir.x * dist, y: dir.y * dist, z: dir.z * dist };
+            }
+            clusterPositions.push(placed);
+        }
+        */
+        
+        
+
+
 
         const orbitPivots  = [];
         const nodeMeshes   = [];
@@ -800,15 +954,12 @@
             clusterGroup.rotation.z = (Math.random() - 0.5) * Math.PI;
             clusterGroup.rotation.y = Math.random() * Math.PI * 2;       // random spin
 
-            const phi   = Math.acos(1 - 2 * (i + 0.5) / domainNames.length);
-            const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+           // Use the pre-computed shapeless scatter position for this cluster.
+            const bx0 = clusterPositions[i].x;
+            const by0 = clusterPositions[i].y;
+            const bz0 = clusterPositions[i].z;
 
-            const bx0 = domainRadius * Math.cos(theta) * Math.sin(phi);
-            const by0 = domainRadius * Math.cos(phi);
-            const bz0 = domainRadius * Math.sin(theta) * Math.sin(phi);
-
-
-            
+           
 
             clusterGroup.userData = {
                 bx0, by0, bz0,
