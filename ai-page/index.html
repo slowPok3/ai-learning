@@ -434,14 +434,14 @@
                         topicEntry = {
                             domain: currentDomain,
                             topic: currentTopic,
-                            topicId: 'S' + topicCounter,
+                            topicId: 'T' + topicCounter,
                             subjects: []
                         };
                         data.push(topicEntry);
                     }
 
                     const subjectCounter = topicEntry.subjects.length + 1;
-                    const subId = topicEntry.topicId + '-T' + subjectCounter;
+                    const subId = topicEntry.topicId + '-S' + subjectCounter;
 
                     topicEntry.subjects.push({
                         name,
@@ -457,7 +457,7 @@
         return data;
     }
 
-// Lightweight validator: warns (in console) about silent content problems
+    // Lightweight validator: warns (in console) about silent content problems
     // so a malformed curriculum file doesn't fail invisibly.
     function validateCurriculum(mdStr, parsed) {
         const warnings = [];
@@ -1015,7 +1015,7 @@
 
                 const cleanTopicName = topicObj.topic.replace(/^\d+\.\s*/, '');
                 const topicMesh      = createNodeMesh(5, clusterColor.hex, clusterColor.em);
-                topicMesh.userData   = { label: cleanTopicName, type: 'topic' };
+                topicMesh.userData   = { label: cleanTopicName, type: 'subject' };
                 planetGroup.add(topicMesh);
                 nodeMeshes.push(topicMesh);
 
@@ -1047,7 +1047,7 @@
                     };
 
                     const subMesh    = createNodeMesh(2.5, clusterColor.hex, clusterColor.em, true);
-                    subMesh.userData = { label: sub.name, type: 'subject', fullObj: sub, color: clusterColor.base };
+                    subMesh.userData = { label: sub.name, type: 'topic', fullObj: sub, color: clusterColor.base };
                     moonGroup.add(subMesh);
                     nodeMeshes.push(subMesh);
 
@@ -1096,7 +1096,7 @@
             if (hits.length) {
                 hoveredMesh = hits[0].object;
                 const ud    = hoveredMesh.userData;
-                const prefix = ud.type === 'domain'  ? '🌟 ' : ud.type === 'topic'   ? '🪐 ' : '🌙 ';
+                const prefix = ud.type === 'domain'  ? '🌟 ' : ud.type === 'subject' ? '🪐 ' : '🌙 ';
                 tooltip.innerHTML      = prefix + ud.label;
                 tooltip.style.left     = (e.clientX + 14) + 'px';
                 tooltip.style.top      = (e.clientY + 14) + 'px';
@@ -1182,7 +1182,9 @@
             // Stop the loop entirely when this view isn't visible (saves GPU/battery).
             if (!constellationActive) { constellationLoopId = null; return; }
             constellationLoopId = requestAnimationFrame(animate);
-            time++;
+
+
+            time++; /// <-- COMMENT THIS OUT TO FREEZE THE VIEW (for screenshots, etc.)
 
             // Layer 1: constant gentle drift — a slow "cruising through space" feel.
             // Tune STARFIELD_DRIFT (bigger = faster flow). 0.00008 was imperceptible.
@@ -1200,6 +1202,7 @@
                 if (!s.userData.active) continue;
                 const ud = s.userData;
                 ud.pos.add(ud.vel);
+                
                 ud.life -= 0.012;          // fade speed (smaller = longer-lived)
 
                 // The line is drawn from current pos to a point "behind" it,
@@ -1224,7 +1227,9 @@
 
                 // Layer 1 — slow orbital drift: advance this system's angle around
                 // the cosmic center, then recompute its anchor (radius unchanged).
-                ud.cosmicAngle += ud.cosmicSpeed;
+                
+                // The Star System drift around the center
+                ud.cosmicAngle += ud.cosmicSpeed; // advance orbit
                 const driftX = Math.cos(ud.cosmicAngle) * ud.cosmicRadius;
                 const driftZ = Math.sin(ud.cosmicAngle) * ud.cosmicRadius;
 
@@ -1237,7 +1242,10 @@
                 cl.children.forEach(child => {
                     if (!child.userData) return;
                     if (child.userData.type === 'planet') {
+                        
+                        // Advance the planet's angle around its orbit, then recompute its position.
                         child.userData.angle += child.userData.speed;
+                        
                         const a    = child.userData.angle;
                         const r    = child.userData.orbitR;
                         const tx   = child.userData.tiltX;
@@ -1249,6 +1257,7 @@
                         child.children.forEach(grandchild => {
                             if (!grandchild.userData) return;
                             if (grandchild.userData.type === 'moon') {
+                                // Advance the moon's angle around its orbit, then recompute its position.
                                 grandchild.userData.angle += grandchild.userData.speed;
                                 const ma   = grandchild.userData.angle;
                                 const mr   = grandchild.userData.orbitR;
@@ -1332,11 +1341,12 @@
                 nodesDataSet.add({
                     id: nodeId,
                     label: label,
-                    shape: "ellipse",
+                    //shape: "ellipse",
+                    shape: "dot",
                     size: 14,                           
                     color: { background: topicColor + "bb", border: topicColor },
                     font: { color: "white", size: 11 },
-                    _type: "topic"
+                    _type: "subject"
                 });
 
                 if (currentDomainId !== null) {
@@ -1383,7 +1393,7 @@
                     color: { background: moonBg, border: moonBd },
                     font: { color: "#cbd5e1", size: 9 },
                     title: fullText,                         
-                    _type: "moon"
+                    _type: "topic"
                 });
 
                 if (currentTopicId !== null) {
