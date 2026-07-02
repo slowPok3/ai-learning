@@ -434,14 +434,14 @@
                         topicEntry = {
                             domain: currentDomain,
                             topic: currentTopic,
-                            topicId: 'T' + topicCounter,
+                            topicId: 'S' + topicCounter,
                             subjects: []
                         };
                         data.push(topicEntry);
                     }
 
                     const subjectCounter = topicEntry.subjects.length + 1;
-                    const subId = topicEntry.topicId + '-S' + subjectCounter;
+                    const subId = topicEntry.topicId + '-T' + subjectCounter;
 
                     topicEntry.subjects.push({
                         name,
