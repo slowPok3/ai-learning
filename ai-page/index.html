@@ -284,7 +284,7 @@
     <div id="view-constellation" class="view active">
         <div class="page-header absolute-header">
             <h1>🌌 The Cosmos</h1>
-            <p>Explore domains, topics, and subjects among the stars</p>
+            <p>Explore domains, subjects, and topics among the stars</p>
         </div>
         <div id="tooltip"></div>
         <div id="hint">🖱️ Drag to rotate • Scroll to zoom • Right-click to pan</div>
@@ -307,23 +307,23 @@
     <div id="view-visual" class="view">
         <div class="page-header">
             <h1>📡 Mission Control</h1>            
-            <p>Survey every domain, topic, and subject at a glancee</p>
+            <p>Survey every domain, subject, and topic at a glancee</p>
         </div>
         <div class="stats-bar">
             <div class="stat"><div class="stat-num" id="stat-domains">0</div><div class="stat-label">Domains</div></div>
-            <div class="stat"><div class="stat-num" id="stat-topics">0</div><div class="stat-label">Topics</div></div>
             <div class="stat"><div class="stat-num" id="stat-subs">0</div><div class="stat-label">Subjects</div></div>
+            <div class="stat"><div class="stat-num" id="stat-topics">0</div><div class="stat-label">Topics</div></div>            
         </div>
         <div class="visual-grid" id="visual-grid"></div>
     </div>
 
     <div id="view-cards" class="view">
         <div class="page-header">
-            <h1>🔍 Subject Explorer</h1>
+            <h1>🔍 Topic Explorer</h1>
         </div>
         <div class="controls">            
             <div class="search-wrapper">                
-                <input type="text" id="search" placeholder="Search topics and subjects..." oninput="debouncedFilter(); toggleClearButton(this.value)">
+                <input type="text" id="search" placeholder="Search subject and topic..." oninput="debouncedFilter(); toggleClearButton(this.value)">
                 <span id="custom-clear-btn" onclick="clearSearch()">&times;</span>
             </div>            
 
@@ -340,13 +340,13 @@
     </div>
 
     <nav id="bottom-nav">
-        <button class="nav-btn" onclick="switchView('constellation')" title="Home (Constellations)">🏠</button>
+        <button class="nav-btn" onclick="switchView('constellation')" title="Home">🏠</button>
         <button class="nav-btn" onclick="prevView()" title="Previous View">&#8592;</button>
         <div class="dots-container">
             <div id="dot-constellation" class="nav-dot active" onclick="switchView('constellation')" title="The Cosmos"></div>
             <div id="dot-mindmap" class="nav-dot" onclick="switchView('mindmap')" title="Knowledge Web"></div>
             <div id="dot-visual" class="nav-dot" onclick="switchView('visual')" title="Mission Control"></div>
-            <div id="dot-cards" class="nav-dot" onclick="switchView('cards')" title="Subject Explorer"></div>
+            <div id="dot-cards" class="nav-dot" onclick="switchView('cards')" title="Topic Explorer"></div>
         </div>
         <button class="nav-btn" onclick="nextView()" title="Next View">&#8594;</button>
         <div id="page-counter" style="color: var(--muted); font-size: 0.85rem; margin-left: 10px; font-variant-numeric: tabular-nums;">1/4</div>
@@ -472,11 +472,11 @@
             else if (line.startsWith('### ') && !line.startsWith('#### ')) sawTopic = true;
             else if (line.startsWith('- ')) {
                 if (!sawDomain || !sawTopic) {
-                    warnings.push(`Line ${i + 1}: subject "${line.slice(2).trim()}" appears before any Domain/Topic and will be DROPPED.`);
+                    warnings.push(`Line ${i + 1}: topic "${line.slice(2).trim()}" appears before any Domain/Topic and will be DROPPED.`);
                 }
                 const body = line.slice(2);
                 if (body.indexOf(':') === -1) {
-                    warnings.push(`Line ${i + 1}: subject "${body.trim()}" has no ":" description.`);
+                    warnings.push(`Line ${i + 1}: topic "${body.trim()}" has no ":" description.`);
                 }
             }
         });
@@ -484,7 +484,7 @@
         parsed.forEach(t => {
             const names = t.subjects.map(s => s.name.toLowerCase());
             const dupes = names.filter((n, idx) => names.indexOf(n) !== idx);
-            if (dupes.length) warnings.push(`Topic "${t.topic}" has duplicate subject(s): ${[...new Set(dupes)].join(', ')}`);
+            if (dupes.length) warnings.push(`Subject "${t.topic}" has duplicate topic(s): ${[...new Set(dupes)].join(', ')}`);
         });
 
         if (warnings.length) {
@@ -1152,7 +1152,7 @@
 
             if (hits.length) {
                 const ud = hits[0].object.userData;
-                const prefix = ud.type === 'domain' ? '🌟 ' : ud.type === 'topic' ? '🪐 ' : '🌙 ';
+                const prefix = ud.type === 'domain' ? '🌟 ' : ud.type === 'subject' ? '🪐 ' : '🌙 ';
                 tooltip.innerHTML     = prefix + ud.label;
                 tooltip.style.left    = (tx + 14) + 'px';
                 tooltip.style.top     = (ty + 14) + 'px';
@@ -1632,7 +1632,8 @@
             const clusterBg = palette[idx % palette.length].rgba.replace('0.75', '0.15');
 
             const topics = parsedCurriculumData.filter(d => d.domain === domainName);
-            numTopics += topics.length;
+            //numTopics += topics.length;
+            numSubs += topics.length;
 
             const pills = topics.map(t => {
                 const cleanTopicName = t.topic.replace(/^\d+\.\s*/, '');
@@ -1640,7 +1641,8 @@
             }).join('');
 
             const allSubs = topics.flatMap(t => t.subjects);
-            numSubs += allSubs.length;
+            //numSubs += allSubs.length;
+            numTopics += allSubs.length;
 
             const tags = allSubs.slice(0, 10).map(s =>
                 `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid #334155;color:${clusterColor}">${s.name}</span>`
@@ -1666,8 +1668,8 @@
         });
 
         document.getElementById('stat-domains').textContent = domains.length;
-        document.getElementById('stat-topics').textContent = numTopics;
         document.getElementById('stat-subs').textContent = numSubs;
+        document.getElementById('stat-topics').textContent = numTopics;        
     }
 
     // ─────────────────────────────────────────────────────────────────
