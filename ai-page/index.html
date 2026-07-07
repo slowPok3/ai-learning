@@ -1472,18 +1472,20 @@
                 let currentPulseX, currentPulseY;
                 const t = pulseProgress;
 
-                // Accurately extract control anchors used by the cubicBezier module
-                if (typeof edge.edgeType.getBezierPoints === 'function') {
-                    const points = edge.edgeType.getBezierPoints();
-                    if (points && points.length === 4) {
-                        // Standard parametric formula computing true cubic bends
-                        currentPulseX = Math.pow(1 - t, 3) * points[0].x + 3 * Math.pow(1 - t, 2) * t * points[1].x + 3 * (1 - t) * Math.pow(t, 2) * points[2].x + Math.pow(t, 3) * points[3].x;
-                        currentPulseY = Math.pow(1 - t, 3) * points[0].y + 3 * Math.pow(1 - t, 2) * t * points[1].y + 3 * (1 - t) * Math.pow(t, 2) * points[2].y + Math.pow(t, 3) * points[3].y;
-                    }
+                // Ask vis-network for the actual point along the rendered curve.
+                // This matches whatever smooth.type is configured (cubicBezier,
+                // continuous, dynamic, etc.) instead of reimplementing the math.
+                let curvePoint = null;
+                if (typeof edge.edgeType.getPoint === 'function') {
+                    curvePoint = edge.edgeType.getPoint(t);
                 }
 
-                // Seamless arithmetic linear calculation fallback 
-                if (currentPulseX === undefined) {
+                if (curvePoint) {
+                    currentPulseX = curvePoint.x;
+                    currentPulseY = curvePoint.y;
+                } else {
+                    // Fallback: straight-line interpolation (only used if getPoint
+                    // is ever unavailable for some edge type).
                     currentPulseX = startX + (endX - startX) * t;
                     currentPulseY = startY + (endY - startY) * t;
                 }
