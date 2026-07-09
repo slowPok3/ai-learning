@@ -470,7 +470,7 @@
             const line = raw.trim();
             if (line.startsWith('## ') && !line.startsWith('### ')) sawDomain = true;
             else if (line.startsWith('### ') && !line.startsWith('#### ')) sawTopic = true;
-            else if (line.startsWith('- ')) {
+            else if (line.startsWith('* ')) {
                 if (!sawDomain || !sawTopic) {
                     warnings.push(`Line ${i + 1}: topic "${line.slice(2).trim()}" appears before any Domain/Topic and will be DROPPED.`);
                 }
@@ -1381,7 +1381,7 @@
         const courseTitle = extractCourseTitle(curriculumMarkdown);
 
         const nodesDataSet = new vis.DataSet([
-            { id: 0, label: courseTitle, shape: "star", size: 30, color: { background: "#38bdf8", border: "#0284c7" }, font: { color: "white", size: 16, bold: true }, _type: "center" }
+            { id: 0, label: courseTitle, shape: "hexagon", size: 30, color: { background: "#38bdf8", border: "#0284c7" }, font: { color: "white", size: 16, bold: true }, _type: "center" }
         ]);
 
         const edges = [];
@@ -1428,7 +1428,7 @@
                 nodesDataSet.add({
                     id: nodeId,
                     label: label,
-                    shape: "dot",
+                    shape: "star",
                     size: 20,                           
                     color: { background: currentDomainColor, border: currentDomainColor },
                     font: { color: "white", size: 14, bold: true },
@@ -1443,7 +1443,7 @@
             else if (trimmed.startsWith("# ")) {
                 continue;                               
             }
-            else if (trimmed.startsWith("- ")) {
+            else if (trimmed.startsWith("* ")) {
                 const fullText  = trimmed.slice(2).trim();  
                 const colonIdx  = fullText.indexOf(":");
                 const moonLabel = colonIdx > -1 ? fullText.slice(0, colonIdx).trim() : fullText;                             
