@@ -22,8 +22,8 @@ const curriculumMarkdown = `
 * SQL Fundamentals: Querying, joining, and aggregating relational data — most real-world data starts here, not in a CSV.
 * NoSQL Basics: When and why to use document/key-value stores (MongoDB, Redis) vs. relational databases.
 
-### Math Bridge
-* Visual Linear Algebra: Understanding vectors and matrices as physical arrows and spatial transformations (rotations, stretching) rather than just scary grids of numbers.
+### Math Intuition Primer
+* Linear Algebra, Intuitively: Understanding vectors and matrices as physical arrows and spatial transformations (rotations, stretching) rather than just scary grids of numbers.
 * Intuitive Calculus: Grasping the concept of slopes (rates of change) and areas under curves visually using interactive graphs before memorizing complex derivative formulas.
 * Basic Probability & Logic: Grounding concepts in high-school algebra, fractions, basic set theory, and logical statements.
 * Computational Math: Using Python (with Matplotlib and NumPy) to plot functions and run numerical simulations, making abstract algebra concrete.
@@ -229,16 +229,6 @@ const curriculumMarkdown = `
 * t-SNE: A technique specifically designed for visualizing high-dimensional data in 2D or 3D.
 * UMAP: A faster, modern alternative to t-SNE that better preserves global data structure.
 
-### Time Series Analysis
-* Trend, seasonality, noise: Decomposing a time series into its core components.
-* ARIMA: Classic statistical forecasting model for stationary time series.
-* Prophet & modern forecasting: Practical tools for business forecasting with holidays/seasonality.
-
-### Recommender Systems
-* Collaborative filtering: Recommending based on similarity between users or items.
-* Matrix factorization: Decomposing user-item interactions to uncover latent preferences.
-* Content-based & hybrid approaches: Combining item attributes with user behavior.
-
 ## Neural Networks
 
 ### Biological Neuron
@@ -277,11 +267,6 @@ const curriculumMarkdown = `
 * Convolution & pooling: Scanning images for features and downsampling the results.
 * Filters: Small grids that learn to detect edges, shapes, and complex objects.
 * ResNet, VGG: Famous, foundational CNN architectures that pushed the field forward.
-
-### Computer Vision Tasks
-* Object detection: Locating and classifying multiple objects in an image (e.g., YOLO).
-* Semantic & instance segmentation: Classifying images at the pixel level.
-* Image generation: Creating new images beyond classification (ties into GANs/Diffusion below).
 
 ### Vision Transformers (ViTs)
 * ViT Architecture: Applying the Transformer sequence paradigm directly to image patches for state-of-the-art computer vision tasks.
@@ -329,6 +314,31 @@ const curriculumMarkdown = `
 * Pre-trained models: Leveraging massive models that have already learned general features.
 * Fine-tuning: Gently tweaking a pre-trained model to excel at your specific task.
 * Feature extraction: Using a model as a fixed feature detector without updating its core weights.
+
+## Modality-Specific AI
+
+### Computer Vision Tasks
+* Object detection: Locating and classifying multiple objects in an image (e.g., YOLO).
+* Semantic & instance segmentation: Classifying images at the pixel level.
+* Image generation: Applying GANs/Diffusion architectures to generate new images.
+
+### Time Series Analysis
+* Trend, seasonality, noise: Decomposing a time series into its core components.
+* ARIMA: Classic statistical forecasting model for stationary time series.
+* Prophet & modern forecasting: Practical tools for business forecasting with holidays/seasonality.
+
+### Recommender Systems
+* Collaborative filtering: Recommending based on similarity between users or items.
+* Matrix factorization: Decomposing user-item interactions to uncover latent preferences.
+* Content-based & hybrid approaches: Combining item attributes with user behavior.
+
+### Audio & Speech Processing
+* Speech-to-Text (STT): Transcribing spoken language into text using models like Whisper.
+* Text-to-Speech (TTS): Synthesizing human-like audio from text representations using Mel-spectrograms.
+
+### Graph Neural Networks (GNNs)
+* Graph Structures: Processing data represented as nodes, edges, and relationships.
+* Applications: Utilizing GNNs for recommendation systems, social network analysis, and drug discovery like AlphaFold.
 
 ## Modern AI
 
@@ -383,16 +393,6 @@ const curriculumMarkdown = `
 * Multi-agent: Designing systems where different specialized AI personas collaborate.
 * Structured Outputs: Enforcing rigid data validation schemas (JSON/Pydantic) for deterministic API control.
 * Model Context Protocol (MCP): Open-standard protocol architectures linking clients, servers, and models uniformly.
-
-## Specialized Domains
-
-### Audio & Speech Processing
-* Speech-to-Text (STT): Transcribing spoken language into text using models like Whisper.
-* Text-to-Speech (TTS): Synthesizing human-like audio from text representations using Mel-spectrograms.
-
-### Graph Neural Networks (GNNs)
-* Graph Structures: Processing data represented as nodes, edges, and relationships.
-* Applications: Utilizing GNNs for recommendation systems, social network analysis, and drug discovery like AlphaFold.
 
 ## ML Engineering
 
@@ -463,4 +463,18 @@ const curriculumMarkdown = `
 * Responsible disclosure: The ethical process of reporting AI vulnerabilities to creators before the public.
 * AI auditing: Independent evaluations of AI systems to ensure compliance with ethical and legal standards.
 
+## Specializations & Electives
+
+### AI in Finance
+* Algorithmic Trading: Using models to identify and execute trading strategies at speed.
+* Credit Risk & Fraud Detection: Applying classification models to assess risk and flag anomalous transactions.
+* Time Series Forecasting in Markets: Domain-specific challenges of forecasting noisy, non-stationary financial data.
+
+### AI in Climate & Earth Science
+* Climate Modeling: Using ML to improve or accelerate physics-based climate simulations.
+* Satellite & Remote Sensing: Applying computer vision to satellite imagery for environmental monitoring.
+
+### Legal & Policy AI
+* Contract Analysis: Using NLP to review, summarize, and flag risk in legal documents.
+* Legal Research & Case Prediction: Applying NLP and retrieval to search case law and predict litigation outcomes.
 `;
