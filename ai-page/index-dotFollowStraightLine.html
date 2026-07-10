@@ -421,7 +421,7 @@
                 currentTopic = line.substring(4).trim();
                 topicCounter++;
             }
-            else if (line.startsWith('* ')) {
+            else if (line.startsWith('- ')) {
                 if (currentDomain && currentTopic) {
                     const parts = line.substring(2).split(':');
                     const name = parts[0].trim();
@@ -434,14 +434,14 @@
                         topicEntry = {
                             domain: currentDomain,
                             topic: currentTopic,
-                            topicId: 'S' + topicCounter,
+                            topicId: 'T' + topicCounter,
                             subjects: []
                         };
                         data.push(topicEntry);
                     }
 
                     const subjectCounter = topicEntry.subjects.length + 1;
-                    const subId = topicEntry.topicId + '-T' + subjectCounter;
+                    const subId = topicEntry.topicId + '-S' + subjectCounter;
 
                     topicEntry.subjects.push({
                         name,
@@ -470,7 +470,7 @@
             const line = raw.trim();
             if (line.startsWith('## ') && !line.startsWith('### ')) sawDomain = true;
             else if (line.startsWith('### ') && !line.startsWith('#### ')) sawTopic = true;
-            else if (line.startsWith('* ')) {
+            else if (line.startsWith('- ')) {
                 if (!sawDomain || !sawTopic) {
                     warnings.push(`Line ${i + 1}: topic "${line.slice(2).trim()}" appears before any Domain/Topic and will be DROPPED.`);
                 }
@@ -504,7 +504,6 @@
         alert('Error: Could not load course-curriculum.js. Make sure it is in the same folder.');
     }
 
-    /*
     const palette = [
         { base: '#38bdf8', hex: 0x38bdf8, em: 0x0284c7, rgba: 'rgba(56, 189, 248, 0.75)' },
         { base: '#10b981', hex: 0x10b981, em: 0x059669, rgba: 'rgba(16, 185, 129, 0.75)' },
@@ -517,70 +516,6 @@
         { base: '#6366f1', hex: 0x6366f1, em: 0x4338ca, rgba: 'rgba(99, 102, 241, 0.75)' },
         { base: '#f97316', hex: 0xf97316, em: 0xc2410c, rgba: 'rgba(249, 115, 22, 0.75)' }
     ];
-
-    */
-
-    // ── Dynamic palette generation ──────────────────────────────────────
-    // Converts an HSL color to {r,g,b,hexString} so we can build both the
-    // Three.js hex ints and the CSS rgba/hex strings from one source of truth.
-    function hslToRgb(h, s, l) {
-        s /= 100; l /= 100;
-        const k = n => (n + h / 30) % 12;
-        const a = s * Math.min(l, 1 - l);
-        const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-        const r = Math.round(f(0) * 255);
-        const g = Math.round(f(8) * 255);
-        const b = Math.round(f(4) * 255);
-        const hexString = '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
-        return { r, g, b, hexString };
-    }
-
-    // Generates `count` evenly-spaced hues around the color wheel so any
-    // number of domains stays visually distinct (no wraparound collisions).
-    //   baseSat/baseLight   → the bright "main" color (spheres, pills, borders)
-    //   emSat/emLight       → the deeper "emissive" variant (glow/shadow tone)
-    //   hueOffset           → rotate the starting hue (0–360), just for variety
-    function generatePalette(count, opts = {}) {
-        const {
-            baseSat = 75,
-            baseLight = 60,
-            emSat = 80,
-            emLight = 38,
-            hueOffset = 0
-        } = opts;
-
-        if (count <= 0) return [];
-
-        return Array.from({ length: count }, (_, i) => {
-            const hue = (360 / count) * i + hueOffset;
-            const base = hslToRgb(hue, baseSat, baseLight);
-            const em   = hslToRgb(hue, emSat, emLight);
-            return {
-                base: base.hexString,
-                hex: parseInt(base.hexString.slice(1), 16),
-                em: parseInt(em.hexString.slice(1), 16),
-                rgba: `rgba(${base.r}, ${base.g}, ${base.b}, 0.75)`
-            };
-        });
-    }
-
-    // Domain count comes from the parsed data itself, so the palette always
-    // has exactly enough distinct colors — no hardcoded cap, no wraparound.
-    const domainCount = new Set(parsedCurriculumData.map(d => d.domain)).size;
-
-    // Tune these 4 numbers to adjust the overall look; everything downstream
-    // (3D cosmos, mindmap, cards, mission control) reads from this one palette.
-    const palette = generatePalette(domainCount, {        
-        // baseSat down to ~65–70 if hues at close angles (e.g., adjacent oranges/yellows) feel too similar — lower saturation increases perceived separation on a dark background less than hue does, but it's worth eyeballing.
-        // baseLight down to ~50–55 if colors feel too pastel/washed out at high domain counts.
-        // hueOffset is just a fun dial — shifts which hue domain #1 starts at, e.g. hueOffset: 200 starts on blue instead of red.
-        
-        baseSat: 75,
-        baseLight: 60,
-        emSat: 80,
-        emLight: 38,
-        hueOffset: 0
-    });
 
     // ─────────────────────────────────────────────────────────────────
     // PANELS & VIEWS
@@ -914,8 +849,8 @@
             const verticalScale = (opts.verticalScale != null) ? opts.verticalScale : 0.7;
 
             function randomDirection() {
-                const theta  = 2 * Math.PI * Math.random();      // full 360° around the forward axis
-                const cosPhi = 1 - Math.random() * spread;        // the ahead↔surround dial
+                const theta  = 2 * Math.PI * Math.random();
+                const cosPhi = 1 - Math.random() * spread;    // the ahead↔surround dial
                 const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
                 return {
                     x: sinPhi * Math.cos(theta),
@@ -1381,7 +1316,7 @@
         const courseTitle = extractCourseTitle(curriculumMarkdown);
 
         const nodesDataSet = new vis.DataSet([
-            { id: 0, label: courseTitle, shape: "hexagon", size: 30, color: { background: "#38bdf8", border: "#0284c7" }, font: { color: "white", size: 16, bold: true }, _type: "center" }
+            { id: 0, label: courseTitle, shape: "star", size: 30, color: { background: "#38bdf8", border: "#0284c7" }, font: { color: "white", size: 16, bold: true }, _type: "center" }
         ]);
 
         const edges = [];
@@ -1428,7 +1363,7 @@
                 nodesDataSet.add({
                     id: nodeId,
                     label: label,
-                    shape: "star",
+                    shape: "dot",
                     size: 20,                           
                     color: { background: currentDomainColor, border: currentDomainColor },
                     font: { color: "white", size: 14, bold: true },
@@ -1443,7 +1378,7 @@
             else if (trimmed.startsWith("# ")) {
                 continue;                               
             }
-            else if (trimmed.startsWith("* ")) {
+            else if (trimmed.startsWith("- ")) {
                 const fullText  = trimmed.slice(2).trim();  
                 const colonIdx  = fullText.indexOf(":");
                 const moonLabel = colonIdx > -1 ? fullText.slice(0, colonIdx).trim() : fullText;                             
@@ -1537,20 +1472,18 @@
                 let currentPulseX, currentPulseY;
                 const t = pulseProgress;
 
-                // Ask vis-network for the actual point along the rendered curve.
-                // This matches whatever smooth.type is configured (cubicBezier,
-                // continuous, dynamic, etc.) instead of reimplementing the math.
-                let curvePoint = null;
-                if (typeof edge.edgeType.getPoint === 'function') {
-                    curvePoint = edge.edgeType.getPoint(t);
+                // Accurately extract control anchors used by the cubicBezier module
+                if (typeof edge.edgeType.getBezierPoints === 'function') {
+                    const points = edge.edgeType.getBezierPoints();
+                    if (points && points.length === 4) {
+                        // Standard parametric formula computing true cubic bends
+                        currentPulseX = Math.pow(1 - t, 3) * points[0].x + 3 * Math.pow(1 - t, 2) * t * points[1].x + 3 * (1 - t) * Math.pow(t, 2) * points[2].x + Math.pow(t, 3) * points[3].x;
+                        currentPulseY = Math.pow(1 - t, 3) * points[0].y + 3 * Math.pow(1 - t, 2) * t * points[1].y + 3 * (1 - t) * Math.pow(t, 2) * points[2].y + Math.pow(t, 3) * points[3].y;
+                    }
                 }
 
-                if (curvePoint) {
-                    currentPulseX = curvePoint.x;
-                    currentPulseY = curvePoint.y;
-                } else {
-                    // Fallback: straight-line interpolation (only used if getPoint
-                    // is ever unavailable for some edge type).
+                // Seamless arithmetic linear calculation fallback 
+                if (currentPulseX === undefined) {
                     currentPulseX = startX + (endX - startX) * t;
                     currentPulseY = startY + (endY - startY) * t;
                 }
@@ -1735,7 +1668,7 @@
                 <div>
                   <h3 style="color:${clusterColor}">${domainName}</h3>
                   <div style="font-size:0.7rem;color:var(--muted);margin-top:2px">
-                    ${topics.length} subjects · ${allSubs.length} topics
+                    ${topics.length} topics · ${allSubs.length} subjects
                   </div>
                 </div>
               </div>

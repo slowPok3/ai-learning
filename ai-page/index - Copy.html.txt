@@ -124,15 +124,7 @@
         .card:hover::before { opacity: 0.05; }
         .card .id { font-size: .7rem; color: var(--accent); letter-spacing: 1px; }
         .card h3 { margin: .3rem 0 .5rem; font-size: 1.1rem; color: var(--text); }
-        .card p {
-            color: var(--muted); font-size: .9rem; line-height: 1.4; margin: 0;
-            /* Clamp to 2 lines so cards stay a consistent height; "…" signals more. */
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        .card p { color: var(--muted); font-size: .9rem; line-height: 1.4; margin: 0; }
         .phase-tag { display: inline-block; margin-top: .8rem; font-size: .7rem; background: rgba(56,189,248,.15); color: var(--accent); padding: .2rem .6rem; border-radius: 20px; }
         .empty { text-align: center; color: var(--muted); grid-column: 1/-1; padding: 2rem; }
         
@@ -283,8 +275,8 @@
 
     <div id="view-constellation" class="view active">
         <div class="page-header absolute-header">
-            <h1>🌌 The Cosmos</h1>
-            <p>Explore domains, subjects, and topics among the stars</p>
+            <h1>🌌 Cosmic Atlas</h1>
+            <p>Navigate domains, topics, and subjects across the universe</p>
         </div>
         <div id="tooltip"></div>
         <div id="hint">🖱️ Drag to rotate • Scroll to zoom • Right-click to pan</div>
@@ -293,8 +285,8 @@
 
     <div id="view-mindmap" class="view">
         <div class="page-header absolute-header">
-            <h1>🕸️ Knowledge Web</h1>
-            <p>See how everything connects</p>
+            <h1>🕸️ Neural Map</h1>
+            <p>An interactive network of domains, topics, and subjects</p>
         </div>
         <div id="mindmap-container"></div>        
         <div class="map-controls">
@@ -307,23 +299,23 @@
     <div id="view-visual" class="view">
         <div class="page-header">
             <h1>📡 Mission Control</h1>            
-            <p>Survey every domain, subject, and topic at a glancee</p>
+            <p>Command every domain, topic, and subject at a glance</p>
         </div>
         <div class="stats-bar">
             <div class="stat"><div class="stat-num" id="stat-domains">0</div><div class="stat-label">Domains</div></div>
+            <div class="stat"><div class="stat-num" id="stat-topics">0</div><div class="stat-label">Topics</div></div>
             <div class="stat"><div class="stat-num" id="stat-subs">0</div><div class="stat-label">Subjects</div></div>
-            <div class="stat"><div class="stat-num" id="stat-topics">0</div><div class="stat-label">Topics</div></div>            
         </div>
         <div class="visual-grid" id="visual-grid"></div>
     </div>
 
     <div id="view-cards" class="view">
         <div class="page-header">
-            <h1>🔍 Topic Explorer</h1>
+            <h1>🔍 Subject Explorer</h1>
         </div>
         <div class="controls">            
-            <div class="search-wrapper">                
-                <input type="text" id="search" placeholder="Search subject and topic..." oninput="debouncedFilter(); toggleClearButton(this.value)">
+            <div class="search-wrapper">
+                <input type="text" id="search" placeholder="Search subjects..." oninput="filterCards(); toggleClearButton(this.value)">
                 <span id="custom-clear-btn" onclick="clearSearch()">&times;</span>
             </div>            
 
@@ -340,13 +332,13 @@
     </div>
 
     <nav id="bottom-nav">
-        <button class="nav-btn" onclick="switchView('constellation')" title="Home">🏠</button>
+        <button class="nav-btn" onclick="switchView('constellation')" title="Home (Constellations)">🏠</button>
         <button class="nav-btn" onclick="prevView()" title="Previous View">&#8592;</button>
         <div class="dots-container">
-            <div id="dot-constellation" class="nav-dot active" onclick="switchView('constellation')" title="The Cosmos"></div>
-            <div id="dot-mindmap" class="nav-dot" onclick="switchView('mindmap')" title="Knowledge Web"></div>
-            <div id="dot-visual" class="nav-dot" onclick="switchView('visual')" title="Mission Control"></div>
-            <div id="dot-cards" class="nav-dot" onclick="switchView('cards')" title="Topic Explorer"></div>
+            <div id="dot-constellation" class="nav-dot active" onclick="switchView('constellation')" title="Constellations"></div>
+            <div id="dot-mindmap" class="nav-dot" onclick="switchView('mindmap')" title="Mindmap"></div>
+            <div id="dot-visual" class="nav-dot" onclick="switchView('visual')" title="Universe at a Glance"></div>
+            <div id="dot-cards" class="nav-dot" onclick="switchView('cards')" title="Learning Cards"></div>            
         </div>
         <button class="nav-btn" onclick="nextView()" title="Next View">&#8594;</button>
         <div id="page-counter" style="color: var(--muted); font-size: 0.85rem; margin-left: 10px; font-variant-numeric: tabular-nums;">1/4</div>
@@ -366,15 +358,6 @@
     let mindmapLoopId = null;
     let pulseProgress = 0;
     let selectedMindmapNodeId = null; 
-
-    // ── Batch B: lazy-init + loop control ───────────────────────────
-    // Tracks which views have been built (so we build each only once).
-    const viewInitialized = { constellation: false, mindmap: false, visual: false, cards: false };
-    // Controls the 3D render loop: true only while the constellation view is visible.
-    let constellationActive = false;
-    // Will hold a function (set inside initVectorSpace) that restarts the 3D loop.
-    let resumeConstellationLoop = null;
-    let resizeConstellationFn = null;   // set inside initVectorSpace; lets panel re-fit the 3D view
 
     // ─────────────────────────────────────────────────────────────────
     // KEYBOARD NAVIGATION
@@ -421,7 +404,7 @@
                 currentTopic = line.substring(4).trim();
                 topicCounter++;
             }
-            else if (line.startsWith('* ')) {
+            else if (line.startsWith('- ')) {
                 if (currentDomain && currentTopic) {
                     const parts = line.substring(2).split(':');
                     const name = parts[0].trim();
@@ -434,14 +417,14 @@
                         topicEntry = {
                             domain: currentDomain,
                             topic: currentTopic,
-                            topicId: 'S' + topicCounter,
+                            topicId: 'T' + topicCounter,
                             subjects: []
                         };
                         data.push(topicEntry);
                     }
 
                     const subjectCounter = topicEntry.subjects.length + 1;
-                    const subId = topicEntry.topicId + '-T' + subjectCounter;
+                    const subId = topicEntry.topicId + '-S' + subjectCounter;
 
                     topicEntry.subjects.push({
                         name,
@@ -457,54 +440,14 @@
         return data;
     }
 
-    // Lightweight validator: warns (in console) about silent content problems
-    // so a malformed curriculum file doesn't fail invisibly.
-    function validateCurriculum(mdStr, parsed) {
-        const warnings = [];
-        if (!parsed || parsed.length === 0) {
-            warnings.push('No domains/topics parsed. Check that the file uses "## Domain" and "### Topic" headings.');
-        }
-        const lines = mdStr.split('\n');
-        let sawDomain = false, sawTopic = false;
-        lines.forEach((raw, i) => {
-            const line = raw.trim();
-            if (line.startsWith('## ') && !line.startsWith('### ')) sawDomain = true;
-            else if (line.startsWith('### ') && !line.startsWith('#### ')) sawTopic = true;
-            else if (line.startsWith('* ')) {
-                if (!sawDomain || !sawTopic) {
-                    warnings.push(`Line ${i + 1}: topic "${line.slice(2).trim()}" appears before any Domain/Topic and will be DROPPED.`);
-                }
-                const body = line.slice(2);
-                if (body.indexOf(':') === -1) {
-                    warnings.push(`Line ${i + 1}: topic "${body.trim()}" has no ":" description.`);
-                }
-            }
-        });
-        // Duplicate subject names within a topic
-        parsed.forEach(t => {
-            const names = t.subjects.map(s => s.name.toLowerCase());
-            const dupes = names.filter((n, idx) => names.indexOf(n) !== idx);
-            if (dupes.length) warnings.push(`Subject "${t.topic}" has duplicate topic(s): ${[...new Set(dupes)].join(', ')}`);
-        });
-
-        if (warnings.length) {
-            console.warn(`%c⚠️ Curriculum validation: ${warnings.length} issue(s)`, 'color:#f59e0b;font-weight:bold');
-            warnings.forEach(w => console.warn('  • ' + w));
-        } else {
-            console.log('%c✓ Curriculum validated, no issues.', 'color:#10b981;font-weight:bold');
-        }
-    }
-
     if (typeof curriculumMarkdown !== 'undefined') {
         const courseTitle = extractCourseTitle(curriculumMarkdown);
         document.title = courseTitle;
         parsedCurriculumData = parseMarkdownToData(curriculumMarkdown);
-        validateCurriculum(curriculumMarkdown, parsedCurriculumData);
     } else {
         alert('Error: Could not load course-curriculum.js. Make sure it is in the same folder.');
     }
 
-    /*
     const palette = [
         { base: '#38bdf8', hex: 0x38bdf8, em: 0x0284c7, rgba: 'rgba(56, 189, 248, 0.75)' },
         { base: '#10b981', hex: 0x10b981, em: 0x059669, rgba: 'rgba(16, 185, 129, 0.75)' },
@@ -518,89 +461,20 @@
         { base: '#f97316', hex: 0xf97316, em: 0xc2410c, rgba: 'rgba(249, 115, 22, 0.75)' }
     ];
 
-    */
-
-    // ── Dynamic palette generation ──────────────────────────────────────
-    // Converts an HSL color to {r,g,b,hexString} so we can build both the
-    // Three.js hex ints and the CSS rgba/hex strings from one source of truth.
-    function hslToRgb(h, s, l) {
-        s /= 100; l /= 100;
-        const k = n => (n + h / 30) % 12;
-        const a = s * Math.min(l, 1 - l);
-        const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-        const r = Math.round(f(0) * 255);
-        const g = Math.round(f(8) * 255);
-        const b = Math.round(f(4) * 255);
-        const hexString = '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
-        return { r, g, b, hexString };
-    }
-
-    // Generates `count` evenly-spaced hues around the color wheel so any
-    // number of domains stays visually distinct (no wraparound collisions).
-    //   baseSat/baseLight   → the bright "main" color (spheres, pills, borders)
-    //   emSat/emLight       → the deeper "emissive" variant (glow/shadow tone)
-    //   hueOffset           → rotate the starting hue (0–360), just for variety
-    function generatePalette(count, opts = {}) {
-        const {
-            baseSat = 75,
-            baseLight = 60,
-            emSat = 80,
-            emLight = 38,
-            hueOffset = 0
-        } = opts;
-
-        if (count <= 0) return [];
-
-        return Array.from({ length: count }, (_, i) => {
-            const hue = (360 / count) * i + hueOffset;
-            const base = hslToRgb(hue, baseSat, baseLight);
-            const em   = hslToRgb(hue, emSat, emLight);
-            return {
-                base: base.hexString,
-                hex: parseInt(base.hexString.slice(1), 16),
-                em: parseInt(em.hexString.slice(1), 16),
-                rgba: `rgba(${base.r}, ${base.g}, ${base.b}, 0.75)`
-            };
-        });
-    }
-
-    // Domain count comes from the parsed data itself, so the palette always
-    // has exactly enough distinct colors — no hardcoded cap, no wraparound.
-    const domainCount = new Set(parsedCurriculumData.map(d => d.domain)).size;
-
-    // Tune these 4 numbers to adjust the overall look; everything downstream
-    // (3D cosmos, mindmap, cards, mission control) reads from this one palette.
-    const palette = generatePalette(domainCount, {        
-        // baseSat down to ~65–70 if hues at close angles (e.g., adjacent oranges/yellows) feel too similar — lower saturation increases perceived separation on a dark background less than hue does, but it's worth eyeballing.
-        // baseLight down to ~50–55 if colors feel too pastel/washed out at high domain counts.
-        // hueOffset is just a fun dial — shifts which hue domain #1 starts at, e.g. hueOffset: 200 starts on blue instead of red.
-        
-        baseSat: 75,
-        baseLight: 60,
-        emSat: 80,
-        emLight: 38,
-        hueOffset: 0
-    });
-
     // ─────────────────────────────────────────────────────────────────
     // PANELS & VIEWS
     // ─────────────────────────────────────────────────────────────────
     function openSidePanel(htmlContent) {
-        const panel = document.getElementById('side-panel');
         document.getElementById('panel-content').innerHTML = htmlContent;
-        panel.scrollTop = 0;                 // ← reset to top so the title is always visible
-        panel.classList.add('open');
+        document.getElementById('side-panel').classList.add('open');
         document.body.classList.add('panel-open');
         if (networkInstance) networkInstance.setSize();
-        // Re-fit the 3D view after the panel's 0.3s slide finishes.
-        setTimeout(() => { if (resizeConstellationFn) resizeConstellationFn(); }, 320);
     }
 
     function closeSidePanel() {
         document.getElementById('side-panel').classList.remove('open');
         document.body.classList.remove('panel-open');
         setTimeout(() => { if (networkInstance) networkInstance.setSize(); }, 300);
-        setTimeout(() => { if (resizeConstellationFn) resizeConstellationFn(); }, 320);
     }
 
     function openModal(sub, color) {
@@ -660,40 +534,16 @@
         document.querySelectorAll('.nav-dot').forEach(d => d.classList.remove('active'));
         document.getElementById('dot-' + viewId).classList.add('active');
 
-        // ── Pause everything first; the block below re-enables only what's needed ──
-        // Stop the 3D render loop whenever we're not on the constellation view.
-        constellationActive = (viewId === 'constellation');
-        // Stop the mindmap loop whenever we're not on the mindmap view.
-        if (viewId !== 'mindmap' && mindmapLoopId) {
-            cancelAnimationFrame(mindmapLoopId);
-            mindmapLoopId = null;
-        }
-
-        // ── Lazy-init: build the view the first time it's opened ──
-        if (!viewInitialized[viewId]) {
-            if (viewId === 'constellation') initVectorSpace();
-            else if (viewId === 'mindmap')  initMindmap();
-            else if (viewId === 'visual')   initVisual();
-            else if (viewId === 'cards')    initCards();
-            viewInitialized[viewId] = true;
-        }
-
-        // ── Resume the correct loop for the now-active view ──
-        if (viewId === 'constellation' && resumeConstellationLoop) {
-            resumeConstellationLoop();   // restart the 3D animation loop
-        }
-
         if (viewId === 'mindmap' && networkInstance) {
             setTimeout(() => {
                 networkInstance.fit({ animation: { duration: 800, easingFunction: 'easeInOutQuad' } });
-                setMapAnimation(mapAnimationProfile);   // this restarts the pulse/drift loop
+                setMapAnimation(mapAnimationProfile);
             }, 100);
         }
 
         const pageNum = currentViewIndex + 1;
         document.getElementById('page-counter').textContent = ` ${pageNum}/${views.length}`;
     }
-
     function nextView() { switchView(views[(currentViewIndex + 1) % views.length]); }
     function prevView() { switchView(views[(currentViewIndex - 1 + views.length) % views.length]); }
 
@@ -702,33 +552,15 @@
     // ─────────────────────────────────────────────────────────────────
     function initVectorSpace() {
         const container = document.getElementById('vector-container');
-
-        // Measure the CONTAINER, not the window — so the scene stays correct
-        // when the side panel shrinks the view. Returns the live width/height.
-        function getContainerSize() {
-            const rect = container.getBoundingClientRect();
-            // Fallbacks guard against a 0x0 measurement if the view is hidden at init.
-            const w = rect.width  || window.innerWidth;
-            const h = rect.height || (window.innerHeight - 60);
-            return { w, h };
-        }
-
         const scene  = new THREE.Scene();
-        const { w: initW, h: initH } = getContainerSize();
-        const camera = new THREE.PerspectiveCamera(60, initW / initH, 0.1, 2000);
-
-        const homePosition = { x: 0, y: 100, z: 420 };
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 60), 0.1, 2000);
+        
+        const homePosition = { x: 0, y: 100, z: 320 };
         camera.position.set(homePosition.x, homePosition.y, homePosition.z);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(initW, initH);
-        // Cap pixel ratio to balance sharpness vs. performance.
-        // Mobile screens have very high DPR (often 3+); capping too low looks
-        // jagged when zoomed in. 2.5 keeps spheres/halos crisp without the full
-        // (expensive) native ratio. Desktop rarely exceeds 2 anyway.
-        const isTouch = ('ontouchstart' in window);
-        const dprCap  = isTouch ? 2.5 : 2;
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
+        renderer.setSize(window.innerWidth, window.innerHeight - 60);
+        renderer.setPixelRatio(window.devicePixelRatio);
         container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -736,7 +568,7 @@
         controls.dampingFactor  = 0.05;
         controls.enablePan      = true;
         controls.minDistance    = 40;   
-        controls.maxDistance    = 1100;
+        controls.maxDistance    = 800;  
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.4));
         const pointLight = new THREE.PointLight(0xffffff, 1.2);
@@ -752,65 +584,11 @@
         const starField = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.5 }));
         scene.add(starField);
 
-        // ── Layer 2: shooting-star streaks ──────────────────────────────
-        // A small reusable pool of glowing line "streaks". Normally invisible;
-        // we launch one across the view at random intervals. Reused (not
-        // recreated) to avoid per-spawn allocation / GC churn.
-        const STREAK_POOL_SIZE = 5;
-        const streaks = [];
-        for (let i = 0; i < STREAK_POOL_SIZE; i++) {
-            // Two points = a short line segment we'll position each frame.
-            const g = new THREE.BufferGeometry().setFromPoints([
-                new THREE.Vector3(0, 0, 0),
-                new THREE.Vector3(0, 0, 0)
-            ]);
-            const m = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
-            const line = new THREE.Line(g, m);
-            line.visible = false;
-            line.userData = { active: false, pos: new THREE.Vector3(), vel: new THREE.Vector3(), life: 0 };
-            scene.add(line);
-            streaks.push(line);
-        }
-
-        // Launch one streak from a random edge, flying across the view.
-        function launchStreak() {
-            const s = streaks.find(st => !st.userData.active);
-            if (!s) return;   // all in use; skip this launch
-
-            // Spawn far out on a random side, aimed roughly across the scene.
-            const spread = 700;
-            const startX = (Math.random() - 0.5) * 2 * spread;
-            const startY = (Math.random() - 0.5) * spread;
-            const startZ = -spread * 0.5 - Math.random() * spread;   // start behind
-            s.userData.pos.set(startX, startY, startZ);
-
-            // Velocity: mostly forward (toward camera-ish) with sideways drift.
-            const speed = 6 + Math.random() * 6;
-            s.userData.vel.set(
-                (Math.random() - 0.5) * speed * 0.6,
-                (Math.random() - 0.5) * speed * 0.4,
-                speed                                  // +Z = travel toward viewer
-            );
-            s.userData.life = 1;          // full brightness, fades to 0
-            s.userData.active = true;
-            s.visible = true;
-        }
-
-        // Schedule launches at randomized intervals (only while view is active).
-        let nextStreakAt = 0;   // a "time" counter threshold (time++ each frame)
-        function scheduleNextStreak() {
-            // ~4–9 seconds at ~60fps → 240–540 frames. Tune MIN/RANGE below.
-            nextStreakAt = time + 240 + Math.floor(Math.random() * 300);
-        }
-        // ────────────────────────────────────────────────────────────────
-
         function createNodeMesh(size, colorHex, emissiveHex, isMoon = false) {
-            // Detail scaled by node size: tiny moons don't need 32x32 polygons
-            const seg  = isMoon ? 12 : 20;
-            const geo  = new THREE.SphereGeometry(size, seg, seg);
+            const geo  = new THREE.SphereGeometry(size, 32, 32);
             const mat  = new THREE.MeshPhongMaterial({ color: colorHex, emissive: emissiveHex, emissiveIntensity: 0.5, shininess: 80 });
             const mesh    = new THREE.Mesh(geo, mat);
-            const haloGeo = new THREE.SphereGeometry(size * (isMoon ? 2.5 : 1.6), 16, 16);
+            const haloGeo = new THREE.SphereGeometry(size * (isMoon ? 2.5 : 1.6), 24, 24);
             const haloMat = new THREE.MeshBasicMaterial({ color: emissiveHex, transparent: true, opacity: isMoon ? 0.25 : 0.15 });
             mesh.add(new THREE.Mesh(haloGeo, haloMat));
             return mesh;
@@ -844,167 +622,7 @@
         });
 
         const domainNames  = Object.keys(domainsMap);
-
-        /* ── Shapeless space scatter: star systems surround the viewer at varied
-        //    depths, with NO perceptible overall shape (no sphere/disk boundary).
-        //    Feels like being parked in open space. Scales to any domain count. ──
-        const N = domainNames.length;
-
-        // Worst-case reach of one cluster (keep in sync with pOrbit + amp below).
-        const MAX_CLUSTER_REACH = 90;    // outermost planet orbit
-        const MAX_CLUSTER_DRIFT = 35;    // max sway/orbital drift
-        const SAFETY_GAP        = 40;    // breathing room so bubbles never touch
-        const minSeparation     = 2 * (MAX_CLUSTER_REACH + MAX_CLUSTER_DRIFT) + SAFETY_GAP;
-
-        // Depth range (distance from the viewer/center). Moderate/wide for parallax:
-        // some systems near (whoosh past), some far (drift slowly) as you travel.
-        // Scales with cube-root of N so density stays natural as domains grow.
-        const scatterScale = Math.cbrt(N / 10);          // 1.0 at 10 domains
-        const nearDist = Math.max(150, minSeparation * 0.9) * scatterScale;
-        const farDist  = Math.max(420, minSeparation * 2.4) * scatterScale;
-        */
-
-        /* Uniform random direction in 3D (surrounding).
-        function randomDirection() {
-            const u = Math.random();
-            const v = Math.random();
-            const theta = 2 * Math.PI * u;               // around
-            const phi   = Math.acos(2 * v - 1);          // uniform in cos(phi) → even
-            return {
-                x: Math.sin(phi) * Math.cos(theta),
-                y: Math.sin(phi) * Math.sin(theta),
-                z: Math.cos(phi)
-            };
-        }
-        */
-        
-
-        /* Field-ahead direction: scatter clusters into a forward-facing cone (the
-        // region the camera looks toward), so the view feels full and purposeful —
-        // like flying toward a star field rather than floating in scattered space.
-        // Camera starts near +Z looking toward the origin, so "ahead" is toward -Z.
-        //const FORWARD_SPREAD = 0.72;   // 0 = laser-straight ahead, 1 = full hemisphere        
-        const FORWARD_SPREAD = 3.14;
-        function randomDirection() {
-            const theta = 2 * Math.PI * Math.random();          // around the forward axis
-            // cosPhi near 1 = tightly forward; we allow a cone by limiting how far
-            // off-axis clusters can go. Larger FORWARD_SPREAD = wider fan.
-            const cosPhi = 1 - Math.random() * FORWARD_SPREAD;  // biased toward "ahead"
-            const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
-            return {
-                x: sinPhi * Math.cos(theta),
-                y: sinPhi * Math.sin(theta) * 0.7,   // slightly flatten vertical spread
-                z: -cosPhi                            // -Z = ahead (toward where camera looks)
-            };
-        }
-        */
-
-
-
-        // ── Unified cosmos placement (one helper, one dial) ────────────────
-        // `spread` blends the view from "field ahead" to "surround":
-        //   ~0.5 = tight field ahead      ~1.0 = forward hemisphere
-        //   ~1.5 = wide / partly around    2.0 = full 360° surround
-        // Everything else (depth range, no-collision spacing) is passed in.
-        function computeClusterPositions(count, opts) {
-            const spread        = opts.spread;
-            const nearDist      = opts.nearDist;
-            const farDist       = opts.farDist;
-            const minSeparation = opts.minSeparation;
-            const verticalScale = (opts.verticalScale != null) ? opts.verticalScale : 0.7;
-
-            function randomDirection() {
-                const theta  = 2 * Math.PI * Math.random();      // full 360° around the forward axis
-                const cosPhi = 1 - Math.random() * spread;        // the ahead↔surround dial
-                const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
-                return {
-                    x: sinPhi * Math.cos(theta),
-                    y: sinPhi * Math.sin(theta) * verticalScale,
-                    z: -cosPhi                                 // -Z = ahead of the camera
-                };
-            }
-
-            const positions = [];
-            for (let p = 0; p < count; p++) {
-                let placed = null;
-                for (let attempt = 0; attempt < 200; attempt++) {
-                    const dir  = randomDirection();
-                    const dist = nearDist + Math.random() * (farDist - nearDist);
-                    const cand = { x: dir.x * dist, y: dir.y * dist, z: dir.z * dist };
-                    const ok = positions.every(pos => {
-                        const dx = pos.x - cand.x, dy = pos.y - cand.y, dz = pos.z - cand.z;
-                        return Math.sqrt(dx*dx + dy*dy + dz*dz) >= minSeparation;
-                    });
-                    if (ok) { placed = cand; break; }
-                }
-                if (!placed) {   // extremely crowded fallback — push farther, still no overlap
-                    const dir = randomDirection();
-                    const dist = farDist + minSeparation * positions.length * 0.15;
-                    placed = { x: dir.x * dist, y: dir.y * dist, z: dir.z * dist };
-                }
-                positions.push(placed);
-            }
-            return positions;
-        }
-
-
-        // Cosmos sizing + no-collision spacing (scales with domain count).
-        const N = domainNames.length;
-        const MAX_CLUSTER_REACH = 90;    // keep in sync with pOrbit below
-        const MAX_CLUSTER_DRIFT = 35;    // keep in sync with amp below
-        const SAFETY_GAP        = 40;
-        const minSeparation     = 2 * (MAX_CLUSTER_REACH + MAX_CLUSTER_DRIFT) + SAFETY_GAP;
-
-        const scatterScale = Math.cbrt(N / 10);
-        const nearDist = Math.max(150, minSeparation * 0.9) * scatterScale;
-        const farDist  = Math.max(420, minSeparation * 2.4) * scatterScale;
-
-        // ── THE ONE DIAL: change COSMOS_SPREAD to shift the whole view ──
-        // 0.5 ≈ field ahead   •   1.5 ≈ your current look   •   2.0 ≈ full surround
-        const COSMOS_SPREAD = 1.2;
-        const clusterPositions = computeClusterPositions(N, {
-            spread: COSMOS_SPREAD,
-            nearDist: nearDist,
-            farDist: farDist,
-            minSeparation: minSeparation,
-            verticalScale: 0.7
-        });
-
-
-                
-        
-
-        /* Place all clusters up front using rejection sampling so none overlap.
-        const clusterPositions = [];
-        for (let p = 0; p < N; p++) {
-            let placed = null;
-            for (let attempt = 0; attempt < 200; attempt++) {   // try up to 200x
-                const dir  = randomDirection();
-                const dist = nearDist + Math.random() * (farDist - nearDist);
-                const cand = { x: dir.x * dist, y: dir.y * dist, z: dir.z * dist };
-
-                // Accept if far enough from every already-placed cluster.
-                const ok = clusterPositions.every(pos => {
-                    const dx = pos.x - cand.x, dy = pos.y - cand.y, dz = pos.z - cand.z;
-                    return Math.sqrt(dx*dx + dy*dy + dz*dz) >= minSeparation;
-                });
-                if (ok) { placed = cand; break; }
-            }
-            // Fallback: if we couldn't satisfy separation (very crowded), push it out
-            // a bit farther so it still doesn't collide, rather than failing.
-            if (!placed) {
-                const dir = randomDirection();
-                const dist = farDist + minSeparation * clusterPositions.length * 0.15;
-                placed = { x: dir.x * dist, y: dir.y * dist, z: dir.z * dist };
-            }
-            clusterPositions.push(placed);
-        }
-        */
-        
-        
-
-
-
+        const domainRadius = 140;
         const orbitPivots  = [];
         const nodeMeshes   = [];
         let   hoveredMesh  = null;
@@ -1013,41 +631,25 @@
             const clusterColor = palette[i % palette.length];
             const clusterGroup = new THREE.Group();
 
-            // Give each star system its own 3D orientation so they don't all look
-            // parallel / identically aligned. A unique tilt per cluster adds variety.
-            clusterGroup.rotation.x = (Math.random() - 0.5) * Math.PI;   // ±90° tilt
-            clusterGroup.rotation.z = (Math.random() - 0.5) * Math.PI;
-            clusterGroup.rotation.y = Math.random() * Math.PI * 2;       // random spin
+            const phi   = Math.acos(1 - 2 * (i + 0.5) / domainNames.length);
+            const theta = Math.PI * (1 + Math.sqrt(5)) * i;
 
-           // Use the pre-computed shapeless scatter position for this cluster.
-            const bx0 = clusterPositions[i].x;
-            const by0 = clusterPositions[i].y;
-            const bz0 = clusterPositions[i].z;
-
-           
+            const bx0 = domainRadius * Math.cos(theta) * Math.sin(phi);
+            const by0 = domainRadius * Math.cos(phi);
+            const bz0 = domainRadius * Math.sin(theta) * Math.sin(phi);
 
             clusterGroup.userData = {
                 bx0, by0, bz0,
-                ampX: 8 + Math.random() * 10,
-                ampY: 6 + Math.random() * 8,
-                ampZ: 8 + Math.random() * 10,
-                
-
-                spX:  (0.0004 + Math.random() * 0.0006) * (Math.random() < 0.5 ? 1 : -1),
-                spY:  (0.0003 + Math.random() * 0.0005) * (Math.random() < 0.5 ? 1 : -1),
-                spZ:  (0.0004 + Math.random() * 0.0006) * (Math.random() < 0.5 ? 1 : -1),
+                ampX: 18 + Math.random() * 22,
+                ampY: 14 + Math.random() * 18,
+                ampZ: 18 + Math.random() * 22,
+                spX:  (0.0008 + Math.random() * 0.0012) * (Math.random() < 0.5 ? 1 : -1),
+                spY:  (0.0006 + Math.random() * 0.0010) * (Math.random() < 0.5 ? 1 : -1),
+                spZ:  (0.0008 + Math.random() * 0.0012) * (Math.random() < 0.5 ? 1 : -1),
                 phX:  Math.random() * Math.PI * 2,
                 phY:  Math.random() * Math.PI * 2,
                 phZ:  Math.random() * Math.PI * 2,
                 rotSpeedY: (0.0005 + Math.random() * 0.0008) * (Math.random() < 0.5 ? 1 : -1),
-
-                // ── Option C: slow orbital drift around the cosmic center ──
-                // Each system orbits (0,0,0) at its own gentle pace, so the whole
-                // cosmos slowly churns without anything escaping into the void.
-                cosmicAngle: Math.atan2(bz0, bx0),                 // current angle around center
-                cosmicRadius: Math.sqrt(bx0 * bx0 + bz0 * bz0),    // distance from center (preserved)
-                //cosmicSpeed: (0.00006 + Math.random() * 0.00008) * (Math.random() < 0.5 ? 1 : -1),
-                cosmicSpeed: 0.001 * (Math.random() < 0.5 ? 1 : -1),   // TEMP: obviously fast
                 type: 'cluster'
             };
 
@@ -1080,7 +682,7 @@
 
                 const cleanTopicName = topicObj.topic.replace(/^\d+\.\s*/, '');
                 const topicMesh      = createNodeMesh(5, clusterColor.hex, clusterColor.em);
-                topicMesh.userData   = { label: cleanTopicName, type: 'subject' };
+                topicMesh.userData   = { label: cleanTopicName, type: 'topic' };
                 planetGroup.add(topicMesh);
                 nodeMeshes.push(topicMesh);
 
@@ -1112,7 +714,7 @@
                     };
 
                     const subMesh    = createNodeMesh(2.5, clusterColor.hex, clusterColor.em, true);
-                    subMesh.userData = { label: sub.name, type: 'topic', fullObj: sub, color: clusterColor.base };
+                    subMesh.userData = { label: sub.name, type: 'subject', fullObj: sub, color: clusterColor.base };
                     moonGroup.add(subMesh);
                     nodeMeshes.push(subMesh);
 
@@ -1142,12 +744,9 @@
         const tooltip   = document.getElementById('tooltip');
 
         container.addEventListener('mousemove', e => {
-            // Use the cached rect (refreshed on resize) instead of measuring every frame.
-            mouse.x =  ((e.clientX - cachedRect.left) / cachedRect.width)  * 2 - 1;
-            mouse.y = -((e.clientY - cachedRect.top)  / cachedRect.height) * 2 + 1;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / (window.innerHeight - 60)) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
-
-
             const hits = raycaster.intersectObjects(nodeMeshes);
 
             if (hoveredMesh) {
@@ -1161,7 +760,7 @@
             if (hits.length) {
                 hoveredMesh = hits[0].object;
                 const ud    = hoveredMesh.userData;
-                const prefix = ud.type === 'domain'  ? '🌟 ' : ud.type === 'subject' ? '🪐 ' : '🌙 ';
+                const prefix = ud.type === 'domain'  ? '🌟 ' : ud.type === 'topic'   ? '🪐 ' : '🌙 ';
                 tooltip.innerHTML      = prefix + ud.label;
                 tooltip.style.left     = (e.clientX + 14) + 'px';
                 tooltip.style.top      = (e.clientY + 14) + 'px';
@@ -1179,10 +778,13 @@
             }
         });
 
-        // Cosmos view is intentionally ambient: hover shows the name (handled in
-        // mousemove). Clicking a moon does NOT open the side panel here — detail
-        // views (Explorer / Mission Control) are where subjects are inspected.
-        // (Click handler removed by design.)
+        container.addEventListener('click', e => {
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(nodeMeshes);
+            if (hits.length && hits[0].object.userData.type === 'subject') {
+                openModal(hits[0].object.userData.fullObj, hits[0].object.userData.color);
+            }
+        });
 
         container.addEventListener('dblclick', e => {
             raycaster.setFromCamera(mouse, camera);
@@ -1201,39 +803,21 @@
             }
         });
 
-        // ── Mobile: tap a moon to reveal its name (no hover on touch) ──
-        // Shows the tooltip at the tap point, then auto-hides after a moment.
-        let touchTooltipTimer = null;
         container.addEventListener('touchstart', e => {
-            if (e.touches.length !== 1) return;   // ignore pinch/multi-touch (that's zoom)
-
-            const tx = e.touches[0].clientX;
-            const ty = e.touches[0].clientY;
-            mouse.x =  ((tx - cachedRect.left) / cachedRect.width)  * 2 - 1;
-            mouse.y = -((ty - cachedRect.top)  / cachedRect.height) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const hits = raycaster.intersectObjects(nodeMeshes);
-
-            if (hits.length) {
-                const ud = hits[0].object.userData;
-                const prefix = ud.type === 'domain' ? '🌟 ' : ud.type === 'subject' ? '🪐 ' : '🌙 ';
-                tooltip.innerHTML     = prefix + ud.label;
-                tooltip.style.left    = (tx + 14) + 'px';
-                tooltip.style.top     = (ty + 14) + 'px';
-                tooltip.style.display = 'block';
-
-                // Auto-dismiss after 2s (no "mouse-away" on touch to hide it).
-                clearTimeout(touchTooltipTimer);
-                touchTooltipTimer = setTimeout(() => { tooltip.style.display = 'none'; }, 2000);
-            } else {
-                tooltip.style.display = 'none';   // tapped empty space → hide
+            if (e.touches.length === 1) {
+                mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.touches[0].clientY / (window.innerHeight - 60)) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const hits = raycaster.intersectObjects(nodeMeshes);
+                if (hits.length && hits[0].object.userData.type === 'subject') {
+                    openModal(hits[0].object.userData.fullObj, hits[0].object.userData.color);
+                }
             }
         }, { passive: true });
 
         const hint = document.getElementById('hint');
         if ('ontouchstart' in window) {
-            hint.textContent = '👆 Tap for names • Pinch to zoom • Drag to rotate';
+            hint.textContent = '👆 Tap moon to explore • Pinch to zoom • Drag to rotate';
         }
         setTimeout(() => {
             hint.style.transition = 'opacity 1.5s ease';
@@ -1242,75 +826,23 @@
         }, 4000);
 
         let time = 0;
-        let constellationLoopId = null;
         function animate() {
-            // Stop the loop entirely when this view isn't visible (saves GPU/battery).
-            if (!constellationActive) { constellationLoopId = null; return; }
-            constellationLoopId = requestAnimationFrame(animate);
+            requestAnimationFrame(animate);
+            time++;
 
-
-            time++; /// <-- COMMENT THIS OUT TO FREEZE THE VIEW (for screenshots, etc.)
-
-            // Layer 1: constant gentle drift — a slow "cruising through space" feel.
-            // Tune STARFIELD_DRIFT (bigger = faster flow). 0.00008 was imperceptible.
-            starField.rotation.y = time * 0.00025;
-            starField.rotation.x = time * 0.00010;   // slight cross-axis = more organic
-
-            // Layer 2: time to launch a new streak?
-            if (time >= nextStreakAt) {
-                launchStreak();
-                scheduleNextStreak();
-            }
-
-            // Update any active streaks.
-            for (const s of streaks) {
-                if (!s.userData.active) continue;
-                const ud = s.userData;
-                ud.pos.add(ud.vel);
-                
-                ud.life -= 0.012;          // fade speed (smaller = longer-lived)
-
-                // The line is drawn from current pos to a point "behind" it,
-                // creating the tail in the direction of travel.
-                const tail = ud.pos.clone().sub(ud.vel.clone().multiplyScalar(3));
-                const positions = s.geometry.attributes.position.array;
-                positions[0] = ud.pos.x;  positions[1] = ud.pos.y;  positions[2] = ud.pos.z;
-                positions[3] = tail.x;    positions[4] = tail.y;    positions[5] = tail.z;
-                s.geometry.attributes.position.needsUpdate = true;
-
-                s.material.opacity = Math.max(0, ud.life) * 0.9;
-
-                // Retire when faded out or flown past the camera.
-                if (ud.life <= 0 || ud.pos.z > 500) {
-                    ud.active = false;
-                    s.visible = false;
-                }
-            }
+            starField.rotation.y = time * 0.00008;
 
             orbitPivots.forEach(cl => {
                 const ud = cl.userData;
-
-                // Layer 1 — slow orbital drift: advance this system's angle around
-                // the cosmic center, then recompute its anchor (radius unchanged).
-                
-                // The Star System drift around the center
-                ud.cosmicAngle += ud.cosmicSpeed; // advance orbit
-                const driftX = Math.cos(ud.cosmicAngle) * ud.cosmicRadius;
-                const driftZ = Math.sin(ud.cosmicAngle) * ud.cosmicRadius;
-
-                // Layer 2 — gentle sway: wobble around the (now drifting) anchor.
-                cl.position.x = driftX + Math.sin(time * ud.spX + ud.phX) * ud.ampX;
-                cl.position.y = ud.by0 + Math.cos(time * ud.spY + ud.phY) * ud.ampY;
-                cl.position.z = driftZ + Math.sin(time * ud.spZ + ud.phZ) * ud.ampZ;
+                cl.position.x = ud.bx0 + Math.sin(time * ud.spX + ud.phX) * ud.ampX;
+                cl.position.y = ud.by0 + Math.cos(time * ud.spY + ud.phY) * ud.ampY; 
+                cl.position.z = ud.bz0 + Math.sin(time * ud.spZ + ud.phZ) * ud.ampZ;
                 cl.rotation.y += ud.rotSpeedY;
 
                 cl.children.forEach(child => {
                     if (!child.userData) return;
                     if (child.userData.type === 'planet') {
-                        
-                        // Advance the planet's angle around its orbit, then recompute its position.
                         child.userData.angle += child.userData.speed;
-                        
                         const a    = child.userData.angle;
                         const r    = child.userData.orbitR;
                         const tx   = child.userData.tiltX;
@@ -1322,7 +854,6 @@
                         child.children.forEach(grandchild => {
                             if (!grandchild.userData) return;
                             if (grandchild.userData.type === 'moon') {
-                                // Advance the moon's angle around its orbit, then recompute its position.
                                 grandchild.userData.angle += grandchild.userData.speed;
                                 const ma   = grandchild.userData.angle;
                                 const mr   = grandchild.userData.orbitR;
@@ -1340,37 +871,13 @@
             controls.update();
             renderer.render(scene, camera);
         }
-        // Expose a resume function so switchView() can restart the loop
-        // when the user returns to the constellation view.
-        resumeConstellationLoop = function () {
-            if (constellationActive && constellationLoopId === null) {
-                animate();
-            }
-        };
-
-        // Schedule the first shooting star, then start the loop.
-        scheduleNextStreak();
-
-        // Start it now (initVectorSpace only runs when constellation is active).
-        constellationActive = true;
         animate();
 
-        // Cache the canvas rect so raycasting doesn't measure the DOM every frame.
-        // We only refresh it when the size can actually change (resize / re-fit).
-        let cachedRect = container.getBoundingClientRect();
-
-        // Recompute from the container so resizes (and panel re-fits) are handled.
-        function resizeConstellation() {
-            const { w, h } = getContainerSize();
-            camera.aspect = w / h;
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / (window.innerHeight - 60);
             camera.updateProjectionMatrix();
-            renderer.setSize(w, h);
-            cachedRect = container.getBoundingClientRect();   // refresh cache after layout change
-        }
-        window.addEventListener('resize', resizeConstellation);
-
-        // Expose it so opening/closing the side panel can trigger a re-fit too.
-        resizeConstellationFn = resizeConstellation;
+            renderer.setSize(window.innerWidth, window.innerHeight - 60);
+        });
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -1381,7 +888,7 @@
         const courseTitle = extractCourseTitle(curriculumMarkdown);
 
         const nodesDataSet = new vis.DataSet([
-            { id: 0, label: courseTitle, shape: "hexagon", size: 30, color: { background: "#38bdf8", border: "#0284c7" }, font: { color: "white", size: 16, bold: true }, _type: "center" }
+            { id: 0, label: courseTitle, shape: "star", size: 30, color: { background: "#38bdf8", border: "#0284c7" }, font: { color: "white", size: 16, bold: true }, _type: "center" }
         ]);
 
         const edges = [];
@@ -1406,12 +913,11 @@
                 nodesDataSet.add({
                     id: nodeId,
                     label: label,
-                    //shape: "ellipse",
-                    shape: "dot",
+                    shape: "ellipse",
                     size: 14,                           
                     color: { background: topicColor + "bb", border: topicColor },
                     font: { color: "white", size: 11 },
-                    _type: "subject"
+                    _type: "topic"
                 });
 
                 if (currentDomainId !== null) {
@@ -1428,7 +934,7 @@
                 nodesDataSet.add({
                     id: nodeId,
                     label: label,
-                    shape: "star",
+                    shape: "dot",
                     size: 20,                           
                     color: { background: currentDomainColor, border: currentDomainColor },
                     font: { color: "white", size: 14, bold: true },
@@ -1443,7 +949,7 @@
             else if (trimmed.startsWith("# ")) {
                 continue;                               
             }
-            else if (trimmed.startsWith("* ")) {
+            else if (trimmed.startsWith("- ")) {
                 const fullText  = trimmed.slice(2).trim();  
                 const colonIdx  = fullText.indexOf(":");
                 const moonLabel = colonIdx > -1 ? fullText.slice(0, colonIdx).trim() : fullText;                             
@@ -1458,7 +964,7 @@
                     color: { background: moonBg, border: moonBd },
                     font: { color: "#cbd5e1", size: 9 },
                     title: fullText,                         
-                    _type: "topic"
+                    _type: "moon"
                 });
 
                 if (currentTopicId !== null) {
@@ -1537,20 +1043,18 @@
                 let currentPulseX, currentPulseY;
                 const t = pulseProgress;
 
-                // Ask vis-network for the actual point along the rendered curve.
-                // This matches whatever smooth.type is configured (cubicBezier,
-                // continuous, dynamic, etc.) instead of reimplementing the math.
-                let curvePoint = null;
-                if (typeof edge.edgeType.getPoint === 'function') {
-                    curvePoint = edge.edgeType.getPoint(t);
+                // Accurately extract control anchors used by the cubicBezier module
+                if (typeof edge.edgeType.getBezierPoints === 'function') {
+                    const points = edge.edgeType.getBezierPoints();
+                    if (points && points.length === 4) {
+                        // Standard parametric formula computing true cubic bends
+                        currentPulseX = Math.pow(1 - t, 3) * points[0].x + 3 * Math.pow(1 - t, 2) * t * points[1].x + 3 * (1 - t) * Math.pow(t, 2) * points[2].x + Math.pow(t, 3) * points[3].x;
+                        currentPulseY = Math.pow(1 - t, 3) * points[0].y + 3 * Math.pow(1 - t, 2) * t * points[1].y + 3 * (1 - t) * Math.pow(t, 2) * points[2].y + Math.pow(t, 3) * points[3].y;
+                    }
                 }
 
-                if (curvePoint) {
-                    currentPulseX = curvePoint.x;
-                    currentPulseY = curvePoint.y;
-                } else {
-                    // Fallback: straight-line interpolation (only used if getPoint
-                    // is ever unavailable for some edge type).
+                // Seamless arithmetic linear calculation fallback 
+                if (currentPulseX === undefined) {
                     currentPulseX = startX + (endX - startX) * t;
                     currentPulseY = startY + (endY - startY) * t;
                 }
@@ -1618,9 +1122,7 @@
             pulseProgress = 0; 
         }
         
-        // Pulse only needs a redraw to re-trigger the afterDrawing glow.
-        // We no longer call startSimulation() every frame, so physics can
-        // settle and the CPU stays cool. (Drift mode still simulates.)
+        networkInstance.startSimulation();
         networkInstance.redraw();
         mindmapLoopId = requestAnimationFrame(runMindmapPulseLoop);
     }
@@ -1684,12 +1186,11 @@
             });
 
             if (matchCount === 0) {
-                grid.innerHTML = '<div class="empty">No matches found</div>';
+                grid.innerHTML = '<div class="empty">No matching subjects found. Try another search.</div>';
             }
         };
 
-        // Note: the inline oninput now calls debouncedFilter(), so we do NOT
-        // add a second "input" listener here (that caused double rendering).
+        search.addEventListener("input", window.filterCards);
         domainFilter.addEventListener("change", window.filterCards);
         window.filterCards();
     }
@@ -1709,8 +1210,7 @@
             const clusterBg = palette[idx % palette.length].rgba.replace('0.75', '0.15');
 
             const topics = parsedCurriculumData.filter(d => d.domain === domainName);
-            //numTopics += topics.length;
-            numSubs += topics.length;
+            numTopics += topics.length;
 
             const pills = topics.map(t => {
                 const cleanTopicName = t.topic.replace(/^\d+\.\s*/, '');
@@ -1718,8 +1218,7 @@
             }).join('');
 
             const allSubs = topics.flatMap(t => t.subjects);
-            //numSubs += allSubs.length;
-            numTopics += allSubs.length;
+            numSubs += allSubs.length;
 
             const tags = allSubs.slice(0, 10).map(s =>
                 `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid #334155;color:${clusterColor}">${s.name}</span>`
@@ -1735,7 +1234,7 @@
                 <div>
                   <h3 style="color:${clusterColor}">${domainName}</h3>
                   <div style="font-size:0.7rem;color:var(--muted);margin-top:2px">
-                    ${topics.length} subjects · ${allSubs.length} topics
+                    ${topics.length} topics · ${allSubs.length} subjects
                   </div>
                 </div>
               </div>
@@ -1745,8 +1244,8 @@
         });
 
         document.getElementById('stat-domains').textContent = domains.length;
+        document.getElementById('stat-topics').textContent = numTopics;
         document.getElementById('stat-subs').textContent = numSubs;
-        document.getElementById('stat-topics').textContent = numTopics;        
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -1754,20 +1253,12 @@
     // ─────────────────────────────────────────────────────────────────
     window.onload = () => {
         if (parsedCurriculumData.length > 0) {
-            // Build & activate only the default view; others init lazily on first visit.
-            switchView('constellation');
+            initVectorSpace();
+            initMindmap();
+            initCards();
+            initVisual();
         }
     };
-
-    // Debounce: wait until the user pauses typing (~150ms) before rebuilding
-    // the card grid, so fast typing doesn't trigger a rebuild on every keystroke.
-    let _filterTimer = null;
-    function debouncedFilter() {
-        clearTimeout(_filterTimer);
-        _filterTimer = setTimeout(() => {
-            if (typeof filterCards === 'function') filterCards();
-        }, 150);
-    }
 
     function toggleClearButton(value) {
         document.getElementById('custom-clear-btn').style.display = value.length > 0 ? 'block' : 'none';
