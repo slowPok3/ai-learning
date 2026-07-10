@@ -504,22 +504,6 @@
         alert('Error: Could not load course-curriculum.js. Make sure it is in the same folder.');
     }
 
-    /*
-    const palette = [
-        { base: '#38bdf8', hex: 0x38bdf8, em: 0x0284c7, rgba: 'rgba(56, 189, 248, 0.75)' },
-        { base: '#10b981', hex: 0x10b981, em: 0x059669, rgba: 'rgba(16, 185, 129, 0.75)' },
-        { base: '#8b5cf6', hex: 0x8b5cf6, em: 0x6d28d9, rgba: 'rgba(139, 92, 246, 0.75)' },
-        { base: '#f43f5e', hex: 0xf43f5e, em: 0xbe123c, rgba: 'rgba(244, 63, 94, 0.75)' },
-        { base: '#f59e0b', hex: 0xf59e0b, em: 0xb45309, rgba: 'rgba(245, 158, 11, 0.75)' },
-        { base: '#ec4899', hex: 0xec4899, em: 0xbe185d, rgba: 'rgba(236, 72, 153, 0.75)' },
-        { base: '#14b8a6', hex: 0x14b8a6, em: 0x0f766e, rgba: 'rgba(20, 184, 166, 0.75)' },
-        { base: '#eab308', hex: 0xeab308, em: 0xa16207, rgba: 'rgba(234, 179, 8, 0.75)' },
-        { base: '#6366f1', hex: 0x6366f1, em: 0x4338ca, rgba: 'rgba(99, 102, 241, 0.75)' },
-        { base: '#f97316', hex: 0xf97316, em: 0xc2410c, rgba: 'rgba(249, 115, 22, 0.75)' }
-    ];
-
-    */
-
     // ── Dynamic palette generation ──────────────────────────────────────
     // Converts an HSL color to {r,g,b,hexString} so we can build both the
     // Three.js hex ints and the CSS rgba/hex strings from one source of truth.
@@ -845,62 +829,6 @@
 
         const domainNames  = Object.keys(domainsMap);
 
-        /* ── Shapeless space scatter: star systems surround the viewer at varied
-        //    depths, with NO perceptible overall shape (no sphere/disk boundary).
-        //    Feels like being parked in open space. Scales to any domain count. ──
-        const N = domainNames.length;
-
-        // Worst-case reach of one cluster (keep in sync with pOrbit + amp below).
-        const MAX_CLUSTER_REACH = 90;    // outermost planet orbit
-        const MAX_CLUSTER_DRIFT = 35;    // max sway/orbital drift
-        const SAFETY_GAP        = 40;    // breathing room so bubbles never touch
-        const minSeparation     = 2 * (MAX_CLUSTER_REACH + MAX_CLUSTER_DRIFT) + SAFETY_GAP;
-
-        // Depth range (distance from the viewer/center). Moderate/wide for parallax:
-        // some systems near (whoosh past), some far (drift slowly) as you travel.
-        // Scales with cube-root of N so density stays natural as domains grow.
-        const scatterScale = Math.cbrt(N / 10);          // 1.0 at 10 domains
-        const nearDist = Math.max(150, minSeparation * 0.9) * scatterScale;
-        const farDist  = Math.max(420, minSeparation * 2.4) * scatterScale;
-        */
-
-        /* Uniform random direction in 3D (surrounding).
-        function randomDirection() {
-            const u = Math.random();
-            const v = Math.random();
-            const theta = 2 * Math.PI * u;               // around
-            const phi   = Math.acos(2 * v - 1);          // uniform in cos(phi) → even
-            return {
-                x: Math.sin(phi) * Math.cos(theta),
-                y: Math.sin(phi) * Math.sin(theta),
-                z: Math.cos(phi)
-            };
-        }
-        */
-        
-
-        /* Field-ahead direction: scatter clusters into a forward-facing cone (the
-        // region the camera looks toward), so the view feels full and purposeful —
-        // like flying toward a star field rather than floating in scattered space.
-        // Camera starts near +Z looking toward the origin, so "ahead" is toward -Z.
-        //const FORWARD_SPREAD = 0.72;   // 0 = laser-straight ahead, 1 = full hemisphere        
-        const FORWARD_SPREAD = 3.14;
-        function randomDirection() {
-            const theta = 2 * Math.PI * Math.random();          // around the forward axis
-            // cosPhi near 1 = tightly forward; we allow a cone by limiting how far
-            // off-axis clusters can go. Larger FORWARD_SPREAD = wider fan.
-            const cosPhi = 1 - Math.random() * FORWARD_SPREAD;  // biased toward "ahead"
-            const sinPhi = Math.sqrt(1 - cosPhi * cosPhi);
-            return {
-                x: sinPhi * Math.cos(theta),
-                y: sinPhi * Math.sin(theta) * 0.7,   // slightly flatten vertical spread
-                z: -cosPhi                            // -Z = ahead (toward where camera looks)
-            };
-        }
-        */
-
-
-
         // ── Unified cosmos placement (one helper, one dial) ────────────────
         // `spread` blends the view from "field ahead" to "surround":
         //   ~0.5 = tight field ahead      ~1.0 = forward hemisphere
@@ -970,41 +898,6 @@
             verticalScale: 0.7
         });
 
-
-                
-        
-
-        /* Place all clusters up front using rejection sampling so none overlap.
-        const clusterPositions = [];
-        for (let p = 0; p < N; p++) {
-            let placed = null;
-            for (let attempt = 0; attempt < 200; attempt++) {   // try up to 200x
-                const dir  = randomDirection();
-                const dist = nearDist + Math.random() * (farDist - nearDist);
-                const cand = { x: dir.x * dist, y: dir.y * dist, z: dir.z * dist };
-
-                // Accept if far enough from every already-placed cluster.
-                const ok = clusterPositions.every(pos => {
-                    const dx = pos.x - cand.x, dy = pos.y - cand.y, dz = pos.z - cand.z;
-                    return Math.sqrt(dx*dx + dy*dy + dz*dz) >= minSeparation;
-                });
-                if (ok) { placed = cand; break; }
-            }
-            // Fallback: if we couldn't satisfy separation (very crowded), push it out
-            // a bit farther so it still doesn't collide, rather than failing.
-            if (!placed) {
-                const dir = randomDirection();
-                const dist = farDist + minSeparation * clusterPositions.length * 0.15;
-                placed = { x: dir.x * dist, y: dir.y * dist, z: dir.z * dist };
-            }
-            clusterPositions.push(placed);
-        }
-        */
-        
-        
-
-
-
         const orbitPivots  = [];
         const nodeMeshes   = [];
         let   hoveredMesh  = null;
@@ -1046,7 +939,6 @@
                 // cosmos slowly churns without anything escaping into the void.
                 cosmicAngle: Math.atan2(bz0, bx0),                 // current angle around center
                 cosmicRadius: Math.sqrt(bx0 * bx0 + bz0 * bz0),    // distance from center (preserved)
-                //cosmicSpeed: (0.00006 + Math.random() * 0.00008) * (Math.random() < 0.5 ? 1 : -1),
                 cosmicSpeed: 0.001 * (Math.random() < 0.5 ? 1 : -1),   // TEMP: obviously fast
                 type: 'cluster'
             };
@@ -1406,7 +1298,6 @@
                 nodesDataSet.add({
                     id: nodeId,
                     label: label,
-                    //shape: "ellipse",
                     shape: "dot",
                     size: 14,                           
                     color: { background: topicColor + "bb", border: topicColor },
