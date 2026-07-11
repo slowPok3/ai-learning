@@ -687,6 +687,13 @@
     function initVectorSpace() {
         const container = document.getElementById('vector-container');
 
+        // Curriculum → 3D scene graph:
+        //   domain  → cluster star  (large sphere at a scattered anchor)
+        //   topic   → planet       (orbits the domain star)
+        //   subject → moon         (orbits its parent planet)
+        // Clusters are THREE.Groups with random tilt; planets/moons use tilted
+        // circular paths (tiltX/tiltZ) so orbits read as 3D, not flat rings.
+
         // Measure the CONTAINER, not the window — so the scene stays correct
         // when the side panel shrinks the view. Returns the live width/height.
         function getContainerSize() {
@@ -727,6 +734,8 @@
         pointLight.position.set(0, 200, 0);
         scene.add(pointLight);
 
+        // Background starfield (animate layer 0): 1500 points in a large cube,
+        // rotated slowly each frame for a parallax "cruising through space" feel.
         const starGeo  = new THREE.BufferGeometry();
         const starVerts = [];
         for (let i = 0; i < 1500; i++) {
@@ -736,10 +745,8 @@
         const starField = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.5 }));
         scene.add(starField);
 
-        // ── Layer 2: shooting-star streaks ──────────────────────────────
-        // A small reusable pool of glowing line "streaks". Normally invisible;
-        // we launch one across the view at random intervals. Reused (not
-        // recreated) to avoid per-spawn allocation / GC churn.
+        // Shooting-star streaks (animate layer 1): a small reusable pool of glowing
+        // line segments. Launched at random intervals; pooled to avoid per-spawn GC.
         const STREAK_POOL_SIZE = 5;
         const streaks = [];
         for (let i = 0; i < STREAK_POOL_SIZE; i++) {
@@ -887,7 +894,7 @@
         const farDist  = Math.max(420, minSeparation * 2.4) * scatterScale;
 
         // ── THE ONE DIAL: change COSMOS_SPREAD to shift the whole view ──
-        // 0.5 ≈ field ahead   •   1.5 ≈ your current look   •   2.0 ≈ full surround
+        // 0.5 ≈ field ahead   •   1.2 ≈ current (wide forward fan)   •   2.0 ≈ full surround
         const COSMOS_SPREAD = 1.2;
         const clusterPositions = computeClusterPositions(N, {
             spread: COSMOS_SPREAD,
@@ -916,8 +923,11 @@
             const by0 = clusterPositions[i].y;
             const bz0 = clusterPositions[i].z;
 
-           
-
+            // Per-cluster motion state (updated every frame in animate()):
+            //   amp* + sp* + ph*   → sinusoidal sway around the anchor (by0 fixed on Y)
+            //   cosmicAngle/Radius → distance preserved while orbiting (0,0,0)
+            //   cosmicSpeed        → drift speed around the cosmic center
+            //   rotSpeedY          → slow spin of the cluster group itself
             clusterGroup.userData = {
                 bx0, by0, bz0,
                 ampX: 8 + Math.random() * 10,
@@ -952,6 +962,9 @@
 
             const topics = domainsMap[domainName];
 
+            // Nested orbits: each topic is a planet group circling its domain star;
+            // each subject is a moon circling its planet. orbitR sets radius; speed
+            // sign alternates by index for counter-rotation; tiltX/tiltZ tilt the plane.
             topics.forEach((topicObj, j) => {
                 const planetGroup = new THREE.Group();
                 const baseSpeed   = 0.35 - j * 0.04;               
@@ -1138,6 +1151,13 @@
             if (!constellationActive) { constellationLoopId = null; return; }
             constellationLoopId = requestAnimationFrame(animate);
 
+            // Per-frame animation layers:
+            //   0 — starField rotation (parallax background)
+            //   1 — shooting-star spawn + streak update
+            //   2 — cluster cosmic drift (orbit around origin)
+            //   3 — cluster sinusoidal sway + group spin
+            //   4 — planet orbits (topics around domain)
+            //   5 — moon orbits (subjects around topic)
 
             time++; /// <-- COMMENT THIS OUT TO FREEZE THE VIEW (for screenshots, etc.)
 
@@ -1262,6 +1282,12 @@
         const container = document.getElementById('mindmap-container');
         const courseTitle = extractCourseTitle(curriculumMarkdown);
 
+        // Parse curriculum markdown into a vis-network graph:
+        //   # title  → center hexagon (id 0)
+        //   ##       → domain (star shape, solid edge from center)
+        //   ###      → topic (dot, solid edge from domain)
+        //   *        → subject (small dot, dashed edge from topic)
+
         const nodesDataSet = new vis.DataSet([
             { id: 0, label: courseTitle, shape: "hexagon", size: 30, color: { background: "#38bdf8", border: "#0284c7" }, font: { color: "white", size: 16, bold: true }, _type: "center" }
         ]);
@@ -1351,6 +1377,9 @@
 
         const edgesDataSet = new vis.DataSet(edges);
 
+        // forceAtlas2Based lays out nodes organically; randomSeed: 42 keeps positions
+        // stable across reloads. Stabilization (300 iterations) runs once at init.
+        // Edge length/width vary by hierarchy level (center→domain→topic→subject).
         networkInstance = new vis.Network(
             container,
             { nodes: nodesDataSet, edges: edgesDataSet },
@@ -1373,6 +1402,8 @@
             }
         );
 
+        // Node click focuses the selection: connected edges highlight in accent blue,
+        // all others dim. selectedMindmapNodeId also scopes the pulse glow below.
         networkInstance.on("click", function(params) {
             if (params.nodes.length > 0) {
                 selectedMindmapNodeId = params.nodes[0];
@@ -1393,6 +1424,9 @@
             }
         });
 
+        // Pulse animation: runMindmapPulseLoop() advances pulseProgress (0→1) and
+        // calls redraw(), which triggers this hook. A radial-gradient dot is drawn at
+        // edge.edgeType.getPoint(t) so the glow follows the actual bezier curve.
         networkInstance.on("afterDrawing", (ctx) => {
             if (mapAnimationProfile !== 'pulse') return;
 
@@ -1452,6 +1486,10 @@
         setMapAnimation('pulse');
     }
 
+    // Animation profiles (toolbar: Pulse / Drift / Static):
+    //   pulse  — physics on but settles; glow travels along edges via afterDrawing
+    //   drift  — continuous forceAtlas2 simulation for gentle node movement
+    //   static — physics off; graph frozen in place
     function setMapAnimation(profileMode) {
         mapAnimationProfile = profileMode;
         
@@ -1511,6 +1549,8 @@
             mindmapLoopId = null;
             return;
         }
+        // Drift mode must tick the physics engine each frame; unlike pulse (which
+        // only redraws), startSimulation() here keeps nodes slowly drifting.
         networkInstance.startSimulation();
         mindmapLoopId = requestAnimationFrame(runMindmapDriftAwakeLoop);
     }
