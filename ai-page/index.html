@@ -879,17 +879,24 @@
         }
         // ────────────────────────────────────────────────────────────────
 
+        // ── HUE-SHIFT-START: store original HSL for per-frame colour cycling ──
         function createNodeMesh(size, colorHex, emissiveHex, isMoon = false) {
             // Detail scaled by node size: tiny moons don't need 32x32 polygons
             const seg  = isMoon ? 12 : 20;
             const geo  = new THREE.SphereGeometry(size, seg, seg);
             const mat  = new THREE.MeshPhongMaterial({ color: colorHex, emissive: emissiveHex, emissiveIntensity: 0.5, shininess: 80 });
+            // Store original HSL so animate() can shift hue without accumulating drift
+            const _tmp = new THREE.Color(colorHex);
+            const _hsl = {};
+            _tmp.getHSL(_hsl);
+            mat.userData = { origH: _hsl.h, origS: _hsl.s, origL: _hsl.l };
             const mesh    = new THREE.Mesh(geo, mat);
             const haloGeo = new THREE.SphereGeometry(size * (isMoon ? 2.5 : 1.6), 16, 16);
             const haloMat = new THREE.MeshBasicMaterial({ color: emissiveHex, transparent: true, opacity: isMoon ? 0.25 : 0.15 });
             mesh.add(new THREE.Mesh(haloGeo, haloMat));
             return mesh;
         }
+        // ── HUE-SHIFT-END ────────────────────────────────────────────────────
 
         function createSprite(text, fontSize, bgColor) {
             const canvas = document.createElement('canvas');
@@ -989,6 +996,9 @@
             verticalScale: 0.7
         });
 
+        // ── HUE-SHIFT-START: array to track planet meshes for colour cycling ──
+        const hueShiftTargets = [];
+        // ── HUE-SHIFT-END ────────────────────────────────────────────────────
         const orbitPivots  = [];
         const nodeMeshes   = [];
         let   hoveredMesh  = null;
@@ -1077,6 +1087,13 @@
                 const cleanSubjectName = subjectObj.subject.replace(/^\d+\.\s*/, '');
                 const topicMesh      = createNodeMesh(5, clusterColor.hex, clusterColor.em);
                 topicMesh.userData   = { label: cleanSubjectName, type: 'subject' };
+                // ── HUE-SHIFT-START: register planet for colour cycling ────────
+                hueShiftTargets.push({
+                    mesh: topicMesh,
+                    phase: Math.random() * Math.PI * 2,
+                    speed: 0.0003 + Math.random() * 0.0005   // slow hue drift
+                });
+                // ── HUE-SHIFT-END ────────────────────────────────────────────
                 planetGroup.add(topicMesh);
                 nodeMeshes.push(topicMesh);
 
@@ -1354,6 +1371,22 @@
                     }
                 });
             });
+
+            // ── HUE-SHIFT-START: subtle per-planet hue cycling ───────────────
+            // Each planet's colour shifts ±4% hue around its original, oscillating
+            // via sine wave. Phase and speed are set at creation time.
+            for (const h of hueShiftTargets) {
+                const m = h.mesh.material;
+                if (!m.userData) continue;
+                const d = m.userData;
+                const hueOffset = 0.04 * Math.sin(time * h.speed + h.phase);  // ±4% hue
+                m.color.setHSL(
+                    (d.origH + hueOffset) % 1,
+                    d.origS,
+                    d.origL
+                );
+            }
+            // ── HUE-SHIFT-END ────────────────────────────────────────────────
 
             controls.update();
             renderer.render(scene, camera);
