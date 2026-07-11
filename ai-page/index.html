@@ -777,7 +777,25 @@
             starVerts.push((Math.random() - 0.5) * 1600, (Math.random() - 0.5) * 1600, (Math.random() - 0.5) * 1600);
         }
         starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
-        const starField = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.5 }));
+        // ── TWINKLE-START: per-star brightness modulation ──────────────────
+        // Each star gets a random phase and speed so its brightness oscillates
+        // independently. Colors are updated every frame in the animate loop.
+        const starColors = new Float32Array(1500 * 3);
+        const starPhases = new Float32Array(1500);
+        const starSpeeds = new Float32Array(1500);
+        for (let i = 0; i < 1500; i++) {
+            starColors[i * 3] = 1;                        // R (initial white)
+            starColors[i * 3 + 1] = 1;                    // G
+            starColors[i * 3 + 2] = 1;                    // B
+            starPhases[i] = Math.random() * Math.PI * 2;  // random start angle
+            starSpeeds[i] = 0.01 + Math.random() * 0.02;  // fast twinkle rate (for testing)
+        }
+        starGeo.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
+        // ── TWINKLE-END ────────────────────────────────────────────────────
+        // const starField = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.5 }));
+        // ── TWINKLE-START: vertexColors replaces hardcoded white ────────────
+        const starField = new THREE.Points(starGeo, new THREE.PointsMaterial({ size: 0.8, transparent: true, opacity: 0.5, vertexColors: true }));
+        // ── TWINKLE-END ────────────────────────────────────────────────────
         scene.add(starField);
 
         // Shooting-star streaks (animate layer 1): a small reusable pool of glowing
@@ -921,7 +939,7 @@
         const N = domainNames.length;
         const MAX_CLUSTER_REACH = 90;    // keep in sync with pOrbit below
         const MAX_CLUSTER_DRIFT = 35;    // keep in sync with amp below
-        const SAFETY_GAP        = 40;
+        const SAFETY_GAP        = 100;
         const minSeparation     = 2 * (MAX_CLUSTER_REACH + MAX_CLUSTER_DRIFT) + SAFETY_GAP;
 
         const scatterScale = Math.cbrt(N / 10);
@@ -982,7 +1000,7 @@
                 // (0,0,0) at its own pace so the cosmos slowly churns as a whole.
                 cosmicAngle: Math.atan2(bz0, bx0),                 // current angle around center
                 cosmicRadius: Math.sqrt(bx0 * bx0 + bz0 * bz0),    // distance from center (preserved)
-                cosmicSpeed: 0.001 * (Math.random() < 0.5 ? 1 : -1),   // tune: ~0.00006–0.00014 for gentle drift
+                cosmicSpeed: 0.0001 * (Math.random() < 0.5 ? 1 : -1),   // tune: ~0.00006–0.00014 for gentle drift
                 type: 'cluster'
             };
 
@@ -1200,6 +1218,20 @@
             // Tune the rotation multipliers below; 0.00008 was imperceptible.
             starField.rotation.y = time * 0.00025;
             starField.rotation.x = time * 0.00010;   // slight cross-axis = more organic
+
+            // ── TWINKLE-START: update per-star brightness each frame ───────
+            // Brightness oscillates: 0.1 (dim) ↔ 1.0 (full) via sine wave.
+            // starPhases[i] and starSpeeds[i] are set once at init (Change A).
+            const colAttr = starField.geometry.getAttribute('color');
+            const colArr = colAttr.array;
+            for (let i = 0; i < 1500; i++) {
+                const b = 0.1 + 0.9 * (0.5 + 0.5 * Math.sin(time * starSpeeds[i] + starPhases[i]));
+                colArr[i * 3]     = b;   // R
+                colArr[i * 3 + 1] = b;   // G
+                colArr[i * 3 + 2] = b;   // B
+            }
+            colAttr.needsUpdate = true;
+            // ── TWINKLE-END ────────────────────────────────────────────────
 
             if (time >= nextStreakAt) {
                 launchStreak();
