@@ -17,6 +17,10 @@
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
         .view { overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
 
+        /* Views are stacked absolutely on top of each other. The active view is
+           made visible via opacity + pointer-events (animated by transition).
+           When body.panel-open is set, all views shrink horizontally to make
+           room for the slide-in side panel. */
         .view { 
             position: absolute; inset: 0; width: 100%; height: calc(100% - 60px); 
             opacity: 0; pointer-events: none; transition: opacity 0.45s ease, width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -31,6 +35,9 @@
             opacity: 1; pointer-events: all; 
         }
         
+        /* Sticky header uses pointer-events:none so scroll events pass through
+           to the content beneath; the h1 and p opt back in with pointer-events:auto
+           so they remain clickable (e.g. selecting text). */
         .page-header { 
             text-align: center; 
             padding-top: 2rem; 
@@ -142,8 +149,8 @@
         .visual-card:hover { border-color: var(--accent); transform: translateY(-2px); }
         .visual-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
         .visual-card-header h3 { font-size: 1.1rem; font-weight: 700; margin: 0; }
-        .topic-pill-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
-        .topic-pill { font-size: 0.72rem; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
+        .subject-pill-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+        .subject-pill { font-size: 0.72rem; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
         .moon-tag-list { display: flex; flex-wrap: wrap; gap: 3px; padding-top: 7px; border-top: 1px solid #334155; }
         .moon-tag { font-size: 0.66rem; padding: 2px 7px; border-radius: 20px; }
         .stats-bar { display: flex; justify-content: center; gap: 40px; background: var(--card); border: 1px solid #334155; border-radius: 13px; padding: 18px 24px; margin: 0 auto 26px; max-width: 600px; }
@@ -281,6 +288,13 @@
 </head>
 <body>
 
+    <!-- ── VIEW CONTAINERS ──────────────────────────────────────────────
+         Four views, stacked absolutely. Only one has .active at a time.
+         constellation = 3D cosmos (Three.js)
+         mindmap       = vis-network knowledge graph
+         visual        = stat cards overview (Mission Control)
+         cards         = searchable subject list (Topic Explorer)
+         ──────────────────────────────────────────────────────────────── -->
     <div id="view-constellation" class="view active">
         <div class="page-header absolute-header">
             <h1>🌌 The Cosmos</h1>
@@ -372,9 +386,9 @@
     const viewInitialized = { constellation: false, mindmap: false, visual: false, cards: false };
     // Controls the 3D render loop: true only while the constellation view is visible.
     let constellationActive = false;
-    // Will hold a function (set inside initVectorSpace) that restarts the 3D loop.
+    // Will hold a function (set inside initCosmos) that restarts the 3D loop.
     let resumeConstellationLoop = null;
-    let resizeConstellationFn = null;   // set inside initVectorSpace; lets panel re-fit the 3D view
+    let resizeConstellationFn = null;   // set inside initCosmos; lets panel re-fit the 3D view
 
     // ─────────────────────────────────────────────────────────────────
     // KEYBOARD NAVIGATION
@@ -399,12 +413,23 @@
         return fallback;
     }
 
+    /** Converts curriculum markdown into a flat array of subject objects.
+     *
+     *  Expected markdown structure:
+     *    # Course Title        — ignored by parser (used by extractCourseTitle)
+     *    ## Domain             — e.g. "Mathematics"
+     *    ### Subject           — e.g. "1. Algebra"
+     *    * Topic: description  — bullet items under each subject
+     *
+     *  Returns: [{ domain, subject, subjectId ("S1"),
+     *              topics: [{name, desc, id, domain, subject}] }]
+     */
     function parseMarkdownToData(mdStr) {
         const lines = mdStr.split('\n');
         const data = [];
         let currentDomain = null;
-        let currentTopic = null;
-        let topicCounter = 0;
+        let currentSubject = null;
+        let subjectCounter = 0;
 
         lines.forEach(line => {
             line = line.trim();
@@ -415,40 +440,43 @@
             }
             else if (line.startsWith('## ') && !line.startsWith('### ')) {
                 currentDomain = line.substring(3).trim();
-                currentTopic = null; 
+                currentSubject = null; 
             }
             else if (line.startsWith('### ') && !line.startsWith('#### ')) {
-                currentTopic = line.substring(4).trim();
-                topicCounter++;
+                currentSubject = line.substring(4).trim();
+                subjectCounter++;
             }
             else if (line.startsWith('* ')) {
-                if (currentDomain && currentTopic) {
+                if (currentDomain && currentSubject) {
                     const parts = line.substring(2).split(':');
                     const name = parts[0].trim();
                     const desc = parts.slice(1).join(':').trim() || '';
 
-                    let topicEntry = data.find(
-                        d => d.domain === currentDomain && d.topic === currentTopic
+                    let subjectEntry = data.find(
+                        d => d.domain === currentDomain && d.subject === currentSubject
                     );
-                    if (!topicEntry) {
-                        topicEntry = {
+                    if (!subjectEntry) {
+                        subjectEntry = {
                             domain: currentDomain,
-                            topic: currentTopic,
-                            topicId: 'S' + topicCounter,
-                            subjects: []
+                            subject: currentSubject,
+                            subjectId: 'S' + subjectCounter,
+                            topics: []
                         };
-                        data.push(topicEntry);
+                        data.push(subjectEntry);
                     }
 
-                    const subjectCounter = topicEntry.subjects.length + 1;
-                    const subId = topicEntry.topicId + '-T' + subjectCounter;
+                    //const subjectCounter = subjectEntry.topics.length + 1;
+                    //const subId = subjectEntry.subjectId + '-T' + subjectCounter;
 
-                    topicEntry.subjects.push({
+                    const topicCounter = subjectEntry.topics.length + 1;
+                    const subId = subjectEntry.subjectId + '-T' + topicCounter;
+
+                    subjectEntry.topics.push({
                         name,
                         desc,
                         id: subId,
                         domain: currentDomain,
-                        topic: currentTopic
+                        subject: currentSubject
                     });
                 }
             }
@@ -482,9 +510,9 @@
         });
         // Duplicate subject names within a topic
         parsed.forEach(t => {
-            const names = t.subjects.map(s => s.name.toLowerCase());
+            const names = t.topics.map(s => s.name.toLowerCase());
             const dupes = names.filter((n, idx) => names.indexOf(n) !== idx);
-            if (dupes.length) warnings.push(`Subject "${t.topic}" has duplicate topic(s): ${[...new Set(dupes)].join(', ')}`);
+            if (dupes.length) warnings.push(`Subject "${t.subject}" has duplicate topics: ${[...new Set(dupes)].join(', ')}`);
         });
 
         if (warnings.length) {
@@ -598,7 +626,7 @@
                 <span class="phase-tag" style="color:${color};background:${color}20">
                     ${sub.domain}
                 </span>
-                <div style="color:var(--muted);font-size:0.8rem;margin-top:8px">${sub.topic.replace(/^\d+\.\s*/, '')}</div>
+                <div style="color:var(--muted);font-size:0.8rem;margin-top:8px">${sub.subject.replace(/^\d+\.\s*/, '')}</div>
             </div>`;
         openSidePanel(html);
     }
@@ -614,16 +642,16 @@
         document.getElementById('side-panel').style.setProperty('--accent', domainColor);
 
         let topicsHtml = '';
-        domainData.forEach(topicObj => {
-            const cleanTopicName = topicObj.topic.replace(/^\d+\.\s*/, '');
-            let subjectsHtml = topicObj.subjects.map(sub => `
+        domainData.forEach(subjectObj => {
+            const cleanSubjectName = subjectObj.subject.replace(/^\d+\.\s*/, '');
+            let subjectsHtml = subjectObj.topics.map(sub => `
                 <li style="margin-bottom:12px;">
                     <strong style="color:var(--text); display:inline-block; font-size:0.95rem;">${sub.name}</strong>
                     <span style="display:block; font-size:0.85rem; color:var(--muted); margin-top:2px; line-height:1.4;">${sub.desc}</span>
                 </li>
             `).join('');
             topicsHtml += `
-                <h3 style="color:var(--text);margin-top:1.5rem;margin-bottom:0.75rem;font-size:1.05rem;border-bottom:1px solid #33415533;padding-bottom:4px;">${cleanTopicName}</h3>
+                <h3 style="color:var(--text);margin-top:1.5rem;margin-bottom:0.75rem;font-size:1.05rem;border-bottom:1px solid #33415533;padding-bottom:4px;">${cleanSubjectName}</h3>
                 <ul style="padding-left:15px;margin:0;">${subjectsHtml}</ul>
             `;
         });
@@ -635,6 +663,13 @@
         openSidePanel(html);
     }
 
+    /** Transitions to the named view. Handles:
+     *  - Closing the side panel
+     *  - Updating nav dots and page counter
+     *  - Pausing animation loops (3D render + mindmap)
+     *  - Lazy-initializing each view on first visit
+     *  - Resuming the correct loop for the now-active view
+     */
     function switchView(viewId) {
         closeSidePanel();
         currentViewIndex = views.indexOf(viewId);
@@ -655,9 +690,9 @@
 
         // ── Lazy-init: build the view the first time it's opened ──
         if (!viewInitialized[viewId]) {
-            if (viewId === 'constellation') initVectorSpace();
+            if (viewId === 'constellation') initCosmos();
             else if (viewId === 'mindmap')  initMindmap();
-            else if (viewId === 'visual')   initVisual();
+            else if (viewId === 'visual')   initMissionControl();
             else if (viewId === 'cards')    initCards();
             viewInitialized[viewId] = true;
         }
@@ -682,9 +717,9 @@
     function prevView() { switchView(views[(currentViewIndex - 1 + views.length) % views.length]); }
 
     // ─────────────────────────────────────────────────────────────────
-    // VIEW 1: VECTOR SPACE / CONSTELLATION
+    // VIEW 1: COSMOS
     // ─────────────────────────────────────────────────────────────────
-    function initVectorSpace() {
+    function initCosmos() {
         const container = document.getElementById('vector-container');
 
         // Curriculum → 3D scene graph:
@@ -828,9 +863,9 @@
         }
 
         const domainsMap  = {};
-        parsedCurriculumData.forEach(topicObj => {
-            if (!domainsMap[topicObj.domain]) domainsMap[topicObj.domain] = [];
-            domainsMap[topicObj.domain].push(topicObj);
+        parsedCurriculumData.forEach(subjectObj => {
+            if (!domainsMap[subjectObj.domain]) domainsMap[subjectObj.domain] = [];
+            domainsMap[subjectObj.domain].push(subjectObj);
         });
 
         const domainNames  = Object.keys(domainsMap);
@@ -960,16 +995,16 @@
             dSprite.position.set(0, 20, 0);     
             domainMesh.add(dSprite);
 
-            const topics = domainsMap[domainName];
+            const subjects = domainsMap[domainName];
 
-            // Nested orbits: each topic is a planet group circling its domain star;
-            // each subject is a moon circling its planet. orbitR sets radius; speed
+            // Nested orbits: each subject is a planet group circling its domain star;
+            // each topic is a moon circling its planet. orbitR sets radius; speed
             // sign alternates by index for counter-rotation; tiltX/tiltZ tilt the plane.
-            topics.forEach((topicObj, j) => {
+            subjects.forEach((subjectObj, j) => {
                 const planetGroup = new THREE.Group();
                 const baseSpeed   = 0.35 - j * 0.04;               
                 const pSpeed      = Math.max(0.08, baseSpeed) * (j % 2 === 0 ? 1 : -1) / 300;  
-                const pAngle0     = (j / topics.length) * Math.PI * 2;
+                const pAngle0     = (j / subjects.length) * Math.PI * 2;
                 const pOrbit      = 35 + j * 8 + Math.random() * 8; 
 
                 const pTiltX = (Math.random() - 0.5) * 0.6;         
@@ -981,13 +1016,13 @@
                     type: 'planet'
                 };
 
-                const cleanTopicName = topicObj.topic.replace(/^\d+\.\s*/, '');
+                const cleanSubjectName = subjectObj.subject.replace(/^\d+\.\s*/, '');
                 const topicMesh      = createNodeMesh(5, clusterColor.hex, clusterColor.em);
-                topicMesh.userData   = { label: cleanTopicName, type: 'subject' };
+                topicMesh.userData   = { label: cleanSubjectName, type: 'subject' };
                 planetGroup.add(topicMesh);
                 nodeMeshes.push(topicMesh);
 
-                const tSprite = createSprite(cleanTopicName, 32, clusterColor.rgba);
+                const tSprite = createSprite(cleanSubjectName, 32, clusterColor.rgba);
                 tSprite.position.set(0, 11, 0);
                 tSprite.visible = false;
                 topicMesh.add(tSprite);
@@ -999,10 +1034,10 @@
                 orbitLine.rotation.z = pTiltZ;
                 clusterGroup.add(orbitLine);
 
-                topicObj.subjects.forEach((sub, k) => {
+                subjectObj.topics.forEach((sub, k) => {
                     const moonGroup = new THREE.Group();
                     const mSpeed  = (0.55 + k * 0.08) * (k % 2 === 0 ? 1 : -1) / 360;
-                    const mAngle0 = (k / topicObj.subjects.length) * Math.PI * 2;
+                    const mAngle0 = (k / subjectObj.topics.length) * Math.PI * 2;
                     const mOrbit  = 14 + k * 3 + Math.random() * 4;  
 
                     const mTiltX  = (Math.random() - 0.5) * 0.45;    
@@ -1253,7 +1288,7 @@
         // Schedule the first shooting star, then start the loop.
         scheduleNextStreak();
 
-        // Start it now (initVectorSpace only runs when constellation is active).
+        // Start it now (initCosmos only runs when constellation is active).
         constellationActive = true;
         animate();
 
@@ -1276,7 +1311,7 @@
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // VIEW 2: MINDMAP
+    // VIEW 2: KNOWLEDGE WEB
     // ─────────────────────────────────────────────────────────────────
     function initMindmap() {
         const container = document.getElementById('mindmap-container');
@@ -1296,7 +1331,7 @@
         let nodeId = 1;
 
         let currentDomainId    = null;  
-        let currentTopicId     = null;  
+        let currentSubjectId     = null;  
         let currentDomainColor = null;  
         let domainColorIndex   = 0;     
 
@@ -1324,7 +1359,7 @@
                 if (currentDomainId !== null) {
                     edges.push({ from: currentDomainId, to: nodeId, length: 140, width: 1.5 });
                 }
-                currentTopicId = nodeId;
+                currentSubjectId = nodeId;
                 nodeId++;
             }
             else if (trimmed.startsWith("## ")) {
@@ -1344,7 +1379,7 @@
 
                 edges.push({ from: 0, to: nodeId, length: 200, width: 2 });
                 currentDomainId    = nodeId;
-                currentTopicId     = null;              
+                currentSubjectId     = null;              
                 nodeId++;
             }
             else if (trimmed.startsWith("# ")) {
@@ -1368,8 +1403,8 @@
                     _type: "topic"
                 });
 
-                if (currentTopicId !== null) {
-                    edges.push({ from: currentTopicId, to: nodeId, length: 80, width: 1, dashes: true });
+                if (currentSubjectId !== null) {
+                    edges.push({ from: currentSubjectId, to: nodeId, length: 80, width: 1, dashes: true });
                 }
                 nodeId++;
             }
@@ -1556,7 +1591,7 @@
     }
     
     // ─────────────────────────────────────────────────────────────────
-    // VIEW 3: EXPLORER CARDS
+    // VIEW 4: TOPIC EXPLORER
     // ─────────────────────────────────────────────────────────────────
     function initCards() {
         const grid = document.getElementById("grid");
@@ -1577,15 +1612,15 @@
             grid.innerHTML = "";
             let matchCount = 0;
 
-            parsedCurriculumData.forEach(topicObj => {
-                if (filterDomain !== "all" && topicObj.domain !== filterDomain) return;
+            parsedCurriculumData.forEach(subjectObj => {
+                if (filterDomain !== "all" && subjectObj.domain !== filterDomain) return;
 
-                const domainIdx = domains.indexOf(topicObj.domain);
+                const domainIdx = domains.indexOf(subjectObj.domain);
                 const clusterColor = palette[domainIdx % palette.length].base;
-                const cleanTopicName = topicObj.topic.replace(/^\d+\.\s*/, '');
+                const cleanSubjectName = subjectObj.subject.replace(/^\d+\.\s*/, '');
 
-                topicObj.subjects.forEach(sub => {
-                    const searchString = `${sub.name} ${cleanTopicName} ${sub.desc}`.toLowerCase();
+                subjectObj.topics.forEach(sub => {
+                    const searchString = `${sub.name} ${cleanSubjectName} ${sub.desc}`.toLowerCase();
                     if (searchString.includes(q)) {
                         matchCount++;
                         const card = document.createElement("div");
@@ -1596,7 +1631,7 @@
                             <h3 style="color:var(--text)">${sub.name}</h3>
                             <p>${sub.desc}</p>
                             <span class="phase-tag" style="color:${clusterColor};background:${clusterColor}20">
-                                ${topicObj.domain} • ${cleanTopicName}
+                                ${subjectObj.domain} • ${cleanSubjectName}
                             </span>`;
                         card.onclick = () => openModal(sub, clusterColor);
                         grid.appendChild(card);
@@ -1616,10 +1651,13 @@
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // VIEW 4: UNIVERSE AT A GLANCE
+    // VIEW 3: MISSION CONTROL
     // ─────────────────────────────────────────────────────────────────
-    function initVisual() {
+    function initMissionControl() {
         const grid = document.getElementById("visual-grid");
+        // NOTE: numSubs counts ### Subjects (one per heading), numTopics counts
+        // * Topics (bullet items across all subjects). Variable names follow the
+        // display labels: "X subjects · Y topics".
         let numTopics = 0;
         let numSubs = 0;
 
@@ -1629,23 +1667,21 @@
             const clusterColor = palette[idx % palette.length].base;
             const clusterBg = palette[idx % palette.length].rgba.replace('0.75', '0.15');
 
-            const topics = parsedCurriculumData.filter(d => d.domain === domainName);
-            //numTopics += topics.length;
-            numSubs += topics.length;
+            const subjects = parsedCurriculumData.filter(d => d.domain === domainName);
+            numSubs += subjects.length;
 
-            const pills = topics.map(t => {
-                const cleanTopicName = t.topic.replace(/^\d+\.\s*/, '');
-                return `<span class="topic-pill" style="color:${clusterColor};background:${clusterBg};border:1px solid ${clusterColor}33">${cleanTopicName}</span>`;
+            const pills = subjects.map(s => {
+                const cleanSubjectName = s.subject.replace(/^\d+\.\s*/, '');
+                return `<span class="subject-pill" style="color:${clusterColor};background:${clusterBg};border:1px solid ${clusterColor}33">${cleanSubjectName}</span>`;
             }).join('');
 
-            const allSubs = topics.flatMap(t => t.subjects);
-            //numSubs += allSubs.length;
-            numTopics += allSubs.length;
+            const allTopics = subjects.flatMap(s => s.topics);
+            numTopics += allTopics.length;
 
-            const tags = allSubs.slice(0, 10).map(s =>
+            const tags = allTopics.slice(0, 10).map(s =>
                 `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid #334155;color:${clusterColor}">${s.name}</span>`
-            ).join('') + (allSubs.length > 10
-                ? `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid #334155;color:${clusterColor}">+${allSubs.length - 10} more</span>`
+            ).join('') + (allTopics.length > 10
+                ? `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid #334155;color:${clusterColor}">+${allTopics.length - 10} more</span>`
                 : '');
 
             const card = document.createElement('div');
@@ -1656,11 +1692,11 @@
                 <div>
                   <h3 style="color:${clusterColor}">${domainName}</h3>
                   <div style="font-size:0.7rem;color:var(--muted);margin-top:2px">
-                    ${topics.length} subjects · ${allSubs.length} topics
+                    ${subjects.length} subjects · ${allTopics.length} topics
                   </div>
                 </div>
               </div>
-              <div class="topic-pill-list">${pills}</div>
+              <div class="subject-pill-list">${pills}</div>
               <div class="moon-tag-list">${tags}</div>`;
             grid.appendChild(card);
         });
@@ -1706,6 +1742,9 @@
         input.focus();
     }
 
+    // Close the side panel when clicking outside it (on the view background
+    // or body). Ignores clicks inside the panel itself, on cards (which open
+    // their own detail view), and on animation mode buttons.
     document.addEventListener('click', e => {
         const sidePanel = document.getElementById('side-panel');
         
