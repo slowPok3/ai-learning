@@ -596,6 +596,15 @@
         hueOffset: 0
     });
 
+    // Escapes text before interpolating it into an HTML template literal.
+    // Curriculum content is trusted today, but this closes the gap cheaply
+    // in case that ever changes (or a stray `<`/`&` shows up in a topic name).
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // PANELS & VIEWS
     // ─────────────────────────────────────────────────────────────────
@@ -621,14 +630,14 @@
         document.getElementById('side-panel').style.setProperty('--accent', color);
 
         const html = `
-            <div class="id" style="color:${color};font-size:0.8rem;letter-spacing:1px">${sub.id}</div>
-            <h2 style="color:${color};margin-top:0.5rem;margin-bottom:1rem;">${sub.name}</h2>
-            <p style="color:var(--text);line-height:1.6;font-size:0.95rem;">${sub.desc}</p>
+            <div class="id" style="color:${color};font-size:0.8rem;letter-spacing:1px">${escapeHtml(sub.id)}</div>
+            <h2 style="color:${color};margin-top:0.5rem;margin-bottom:1rem;">${escapeHtml(sub.name)}</h2>
+            <p style="color:var(--text);line-height:1.6;font-size:0.95rem;">${escapeHtml(sub.desc)}</p>
             <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #334155">
                 <span class="phase-tag" style="color:${color};background:${color}20">
-                    ${domainName}
+                    ${escapeHtml(domainName)}
                 </span>
-                <div style="color:var(--muted);font-size:0.8rem;margin-top:8px">${subjectName}</div>
+                <div style="color:var(--muted);font-size:0.8rem;margin-top:8px">${escapeHtml(subjectName)}</div>
             </div>`;
         openSidePanel(html);
     }
@@ -646,18 +655,18 @@
         domain.subjects.forEach(subject => {
             let subjectsHtml = subject.topics.map(sub => `
                 <li style="margin-bottom:12px;">
-                    <strong style="color:var(--text); display:inline-block; font-size:0.95rem;">${sub.name}</strong>
-                    <span style="display:block; font-size:0.85rem; color:var(--muted); margin-top:2px; line-height:1.4;">${sub.desc}</span>
+                    <strong style="color:var(--text); display:inline-block; font-size:0.95rem;">${escapeHtml(sub.name)}</strong>
+                    <span style="display:block; font-size:0.85rem; color:var(--muted); margin-top:2px; line-height:1.4;">${escapeHtml(sub.desc)}</span>
                 </li>
             `).join('');
             topicsHtml += `
-                <h3 style="color:var(--text);margin-top:1.5rem;margin-bottom:0.75rem;font-size:1.05rem;border-bottom:1px solid #33415533;padding-bottom:4px;">${subject.name}</h3>
+                <h3 style="color:var(--text);margin-top:1.5rem;margin-bottom:0.75rem;font-size:1.05rem;border-bottom:1px solid #33415533;padding-bottom:4px;">${escapeHtml(subject.name)}</h3>
                 <ul style="padding-left:15px;margin:0;">${subjectsHtml}</ul>
             `;
         });
 
         const html = `
-            <h2 style="color:${domainColor};margin-top:0;margin-bottom:1rem;font-size:1.4rem;">${domainName}</h2>
+            <h2 style="color:${domainColor};margin-top:0;margin-bottom:1rem;font-size:1.4rem;">${escapeHtml(domainName)}</h2>
             ${topicsHtml}
         `;
         openSidePanel(html);
@@ -1151,7 +1160,7 @@
                 hoveredMesh = hits[0].object;
                 const ud    = hoveredMesh.userData;
                 const prefix = ud.type === 'domain'  ? '🌟 ' : ud.type === 'subject' ? '🪐 ' : '🌙 ';
-                tooltip.innerHTML      = prefix + ud.label;
+                tooltip.innerHTML      = prefix + escapeHtml(ud.label);
                 tooltip.style.left     = (e.clientX + 14) + 'px';
                 tooltip.style.top      = (e.clientY + 14) + 'px';
                 tooltip.style.display  = 'block';
@@ -1207,7 +1216,7 @@
             if (hits.length) {
                 const ud = hits[0].object.userData;
                 const prefix = ud.type === 'domain' ? '🌟 ' : ud.type === 'subject' ? '🪐 ' : '🌙 ';
-                tooltip.innerHTML     = prefix + ud.label;
+                tooltip.innerHTML     = prefix + escapeHtml(ud.label);
                 tooltip.style.left    = (tx + 14) + 'px';
                 tooltip.style.top     = (ty + 14) + 'px';
                 tooltip.style.display = 'block';
@@ -1684,11 +1693,11 @@
                             card.className = "card";
                             card.style.borderLeft = `4px solid ${clusterColor}`;
                             card.innerHTML = `
-                                <div class="id" style="color:${clusterColor}">${sub.id}</div>
-                                <h3 style="color:var(--text)">${sub.name}</h3>
-                                <p>${sub.desc}</p>
+                                <div class="id" style="color:${clusterColor}">${escapeHtml(sub.id)}</div>
+                                <h3 style="color:var(--text)">${escapeHtml(sub.name)}</h3>
+                                <p>${escapeHtml(sub.desc)}</p>
                                 <span class="phase-tag" style="color:${clusterColor};background:${clusterColor}20">
-                                    ${domain.name} • ${subject.name}
+                                    ${escapeHtml(domain.name)} • ${escapeHtml(subject.name)}
                                 </span>`;
                             card.onclick = () => openModal(sub, clusterColor, domain.name, subject.name);
                             // ── CARD-STAGGER-START: staggered entrance ─────
@@ -1732,14 +1741,14 @@
             numSubs += subjects.length;
 
             const pills = subjects.map(s =>
-                `<span class="subject-pill" style="color:${clusterColor};background:${clusterBg};border:1px solid ${clusterColor}33">${s.name}</span>`
+                `<span class="subject-pill" style="color:${clusterColor};background:${clusterBg};border:1px solid ${clusterColor}33">${escapeHtml(s.name)}</span>`
             ).join('');
 
             const allTopics = subjects.flatMap(s => s.topics);
             numTopics += allTopics.length;
 
             const tags = allTopics.slice(0, 10).map(s =>
-                `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid #334155;color:${clusterColor}">${s.name}</span>`
+                `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid #334155;color:${clusterColor}">${escapeHtml(s.name)}</span>`
             ).join('') + (allTopics.length > 10
                 ? `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid #334155;color:${clusterColor}">+${allTopics.length - 10} more</span>`
                 : '');
@@ -1750,7 +1759,7 @@
             card.innerHTML = `
               <div class="visual-card-header">
                 <div>
-                  <h3 style="color:${clusterColor}">${domainName}</h3>
+                  <h3 style="color:${clusterColor}">${escapeHtml(domainName)}</h3>
                   <div style="font-size:0.7rem;color:var(--muted);margin-top:2px">
                     ${subjects.length} subjects · ${allTopics.length} topics
                   </div>
