@@ -16,9 +16,13 @@ contains all CSS/JS inline and renders the curriculum four ways:
 - **Topic Explorer** — searchable, filterable card grid.
 
 All four views are derived from one parse of the curriculum Markdown
-(`parseMarkdownToData` / `extractCourseTitle` in `index.html`). There is
-no build step — open `ai-page/index.html` directly in a browser (double
-click, no server needed).
+(`parseCurriculum` in `index.html`), which returns a single canonical
+model — `{ title, domains: [{ name, subjects: [{ name, rawName, id,
+topics: [{name, desc, id}] }] }] }` — that each view function (`initCosmos`,
+`initMindmap`, `initCards`, `initMissionControl`) reads directly; there is
+no per-view re-parsing of the Markdown. There is no build step — open
+`ai-page/index.html` directly in a browser (double click, no server
+needed).
 
 ### Editing the curriculum
 
@@ -42,9 +46,8 @@ template literal it replaced).
 If this page ever becomes always-served over http(s) (e.g. GitHub Pages
 only, no more local `file://` usage), `course-curriculum.js` and
 `build-curriculum.js` can be deleted and `index.html` can instead
-`fetch('course-curriculum.md')` directly — `parseMarkdownToData` and
-`extractCourseTitle` already operate on a plain string, so no parser
-changes would be needed.
+`fetch('course-curriculum.md')` directly — `parseCurriculum` already
+operates on a plain string, so no parser changes would be needed.
 
 ### Code conventions in index.html
 
@@ -57,12 +60,8 @@ changes would be needed.
   (`constellationActive`, `mindmapLoopId`) so `requestAnimationFrame`
   loops stop running when a view isn't visible.
 
-### Known architecture direction (not yet done)
-
-Two of the four views currently parse the curriculum Markdown
-independently with separate hand-rolled walkers (`parseMarkdownToData`
-for Cosmos/Cards/Mission Control, and a second inline parser inside
-`initMindmap`). The intended direction is a single canonical parse into
-one data model, with each view as a pure function of that model — see
-git history / PR discussion for the fuller architecture writeup before
-attempting a parser unification.
+- `parseCurriculum` strips the leading numeric prefix (`"1. "`) from
+  subject names once, into `.name`; `.rawName` keeps the original heading
+  text for the rare case a view needs it (currently only validation
+  warnings, which reference the raw heading for easier lookup in the
+  source file).
