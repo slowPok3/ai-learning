@@ -62,8 +62,10 @@ function switchView(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + viewId).classList.add('active');
 
-    document.querySelectorAll('.nav-dot').forEach(d => d.classList.remove('active'));
-    document.getElementById('dot-' + viewId).classList.add('active');
+    document.querySelectorAll('.nav-dot').forEach(d => { d.classList.remove('active'); d.removeAttribute('aria-current'); });
+    const activeDot = document.getElementById('dot-' + viewId);
+    activeDot.classList.add('active');
+    activeDot.setAttribute('aria-current', 'true');
 
     Object.entries(viewModules).forEach(([id, mod]) => {
         if (id === viewId) mod.activate(curriculumModel, palette);

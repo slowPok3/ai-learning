@@ -17,6 +17,13 @@
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
         .view { overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
 
+        /* Visually hides content while keeping it in the accessibility tree
+           (unlike display:none/visibility:hidden, which remove it entirely). */
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+        }
+
         /* Views are stacked absolutely on top of each other. The active view is
            made visible via opacity + pointer-events (animated by transition).
            When body.panel-open is set, all views shrink horizontally to make
@@ -132,7 +139,7 @@
         input:focus, select:focus { border-color: var(--accent); outline: none; }
         input { min-width: 280px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; padding-bottom: 40px; }
-        .card { background: var(--card); border-radius: 12px; padding: 1.2rem; border-left: 4px solid var(--accent); transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; cursor: pointer; position: relative; overflow: hidden; }
+        .card { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--card); border-radius: 12px; padding: 1.2rem; border: none; border-left: 4px solid var(--accent); transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; cursor: pointer; position: relative; overflow: hidden; }
         .card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(56,189,248,.15); }
         .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: currentColor; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
         .card:hover::before { opacity: 0.05; }
@@ -162,7 +169,7 @@
         
         #view-visual { overflow-y: auto; padding: 0 2rem 2rem 2rem; box-sizing: border-box; background: var(--bg); }
         .visual-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap: 18px; margin-top: 14px; padding-bottom: 40px;}
-        .visual-card { background: var(--card); border: 1px solid #334155; border-radius: 13px; padding: 18px; transition: border-color 0.25s, transform 0.25s; cursor: pointer; }
+        .visual-card { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--card); border: 1px solid #334155; border-radius: 13px; padding: 18px; transition: border-color 0.25s, transform 0.25s; cursor: pointer; }
         .visual-card:hover { border-color: var(--accent); transform: translateY(-2px); }
         .visual-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
         .visual-card-header h3 { font-size: 1.1rem; font-weight: 700; margin: 0; }
@@ -183,7 +190,7 @@
         .nav-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
         
         .dots-container { display: flex; gap: 10px; align-items: center; }
-        .nav-dot { width: 10px; height: 10px; border-radius: 5px; background: #475569; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .nav-dot { -webkit-appearance: none; appearance: none; border: none; padding: 0; font: inherit; width: 10px; height: 10px; border-radius: 5px; background: #475569; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .nav-dot:hover { background: #94a3b8; }
         .nav-dot.active { width: 30px; background: #38bdf8; }
         
@@ -204,16 +211,19 @@
             right: 12px;
             top: 50%;
             transform: translateY(-50%);
+            border: none;
+            background: none;
+            line-height: 1;
             font-size: 20px;
             color: var(--muted);
             cursor: pointer;
-            display: none; 
+            display: none;
             user-select: none;
             font-family: Arial, sans-serif;
             font-weight: bold;
-            z-index: 110;          
-            pointer-events: all;   
-            padding: 5px;          
+            z-index: 110;
+            pointer-events: all;
+            padding: 5px;
         }
 
         #custom-clear-btn:hover {
@@ -352,18 +362,21 @@
         <div class="page-header">
             <h1>🔍 Topic Explorer</h1>
         </div>
-        <div class="controls">            
-            <div class="search-wrapper">                
+        <div class="controls">
+            <div class="search-wrapper">
+                <label for="search" class="sr-only">Search subject and topic</label>
                 <input type="text" id="search" placeholder="Search subject and topic..." oninput="CardsView.onSearchInput(this.value)">
-                <span id="custom-clear-btn" onclick="CardsView.clearSearch()">&times;</span>
-            </div>            
+                <button id="custom-clear-btn" onclick="CardsView.clearSearch()" aria-label="Clear search">&times;</button>
+            </div>
 
+            <label for="domainFilter" class="sr-only">Filter by domain</label>
             <select id="domainFilter">
                 <option value="all">All Domains</option>
             </select>
         </div>
+        <div id="search-status" class="sr-only" aria-live="polite"></div>
         <div class="grid" id="grid"></div>
-    </div>   
+    </div>
 
     <div id="side-panel">
         <button class="close-btn" onclick="Panel.close()">×</button>
@@ -371,15 +384,15 @@
     </div>
 
     <nav id="bottom-nav">
-        <button class="nav-btn" onclick="switchView('constellation')" title="Home">🏠</button>
-        <button class="nav-btn" onclick="prevView()" title="Previous View">&#8592;</button>
+        <button class="nav-btn" onclick="switchView('constellation')" title="Home" aria-label="Home">🏠</button>
+        <button class="nav-btn" onclick="prevView()" title="Previous View" aria-label="Previous view">&#8592;</button>
         <div class="dots-container">
-            <div id="dot-constellation" class="nav-dot active" onclick="switchView('constellation')" title="The Cosmos"></div>
-            <div id="dot-mindmap" class="nav-dot" onclick="switchView('mindmap')" title="Knowledge Web"></div>
-            <div id="dot-visual" class="nav-dot" onclick="switchView('visual')" title="Mission Control"></div>
-            <div id="dot-cards" class="nav-dot" onclick="switchView('cards')" title="Topic Explorer"></div>
+            <button id="dot-constellation" class="nav-dot active" onclick="switchView('constellation')" title="The Cosmos" aria-label="The Cosmos" aria-current="true"></button>
+            <button id="dot-mindmap" class="nav-dot" onclick="switchView('mindmap')" title="Knowledge Web" aria-label="Knowledge Web"></button>
+            <button id="dot-visual" class="nav-dot" onclick="switchView('visual')" title="Mission Control" aria-label="Mission Control"></button>
+            <button id="dot-cards" class="nav-dot" onclick="switchView('cards')" title="Topic Explorer" aria-label="Topic Explorer"></button>
         </div>
-        <button class="nav-btn" onclick="nextView()" title="Next View">&#8594;</button>
+        <button class="nav-btn" onclick="nextView()" title="Next View" aria-label="Next view">&#8594;</button>
         <div id="page-counter" style="color: var(--muted); font-size: 0.85rem; margin-left: 10px; font-variant-numeric: tabular-nums;">1/4</div>
     </nav>
 

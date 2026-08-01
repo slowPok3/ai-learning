@@ -33,7 +33,8 @@ const MissionControlView = (function () {
                 ? `<span class="moon-tag" style="background:${clusterColor}15;border:1px solid #334155;color:${clusterColor}">+${allTopics.length - 10} more</span>`
                 : '');
 
-            const card = document.createElement('div');
+            const card = document.createElement('button');
+            card.type = 'button';
             card.className = 'visual-card';
             card.onclick = () => Panel.openDomain(domainName, model, palette);
             card.innerHTML = `

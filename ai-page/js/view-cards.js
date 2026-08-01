@@ -35,7 +35,8 @@ const CardsView = (function () {
                         const searchString = `${sub.name} ${subject.name} ${sub.desc}`.toLowerCase();
                         if (searchString.includes(q)) {
                             matchCount++;
-                            const card = document.createElement("div");
+                            const card = document.createElement("button");
+                            card.type = "button";
                             card.className = "card";
                             card.style.borderLeft = `4px solid ${clusterColor}`;
                             card.innerHTML = `
@@ -58,6 +59,13 @@ const CardsView = (function () {
 
             if (matchCount === 0) {
                 grid.innerHTML = '<div class="empty">No matches found</div>';
+            }
+
+            const status = document.getElementById('search-status');
+            if (status) {
+                status.textContent = matchCount === 0
+                    ? 'No matches found'
+                    : `${matchCount} topic${matchCount === 1 ? '' : 's'} found`;
             }
         };
 
