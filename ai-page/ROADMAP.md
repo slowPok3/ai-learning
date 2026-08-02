@@ -1,7 +1,8 @@
 # ai-page Roadmap
 
 Backlog of known improvement areas, roughly priority-ordered. Completed
-work is listed briefly for context; see git log for detail.
+work is listed briefly for context; see `CHANGELOG.md` for dated detail
+and `git log` for full commit-level detail.
 
 ## Done
 - Curriculum content moved to `course-curriculum.md` (real source file)
