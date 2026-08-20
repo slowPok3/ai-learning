@@ -1,21 +1,8 @@
 # ai-page Roadmap
 
 Backlog of known improvement areas, roughly priority-ordered. Completed
-work is listed briefly for context; see `CHANGELOG.md` for dated detail
-and `git log` for full commit-level detail.
-
-## Done
-- Curriculum content moved to `course-curriculum.md` (real source file)
-- Curriculum parsing unified into one canonical model (`parseCurriculum`)
-- Curriculum text escaped before `innerHTML` injection (XSS hardening)
-- `index.html` split into `js/*.js` modules; per-view state encapsulated
-- CDN scripts (three.js, OrbitControls, vis-network) pinned + SRI-hashed
-- Accessibility gaps fixed: nav dots, cards, and the search clear button
-  are now real `<button>`s (focusable, Enter/Space-activated); bottom-nav
-  buttons have `aria-label`; the active nav dot gets `aria-current`;
-  `#search`/`#domainFilter` have associated `<label>`s (visually hidden
-  via `.sr-only`); Topic Explorer result counts are announced via an
-  `aria-live` region.
+work is not repeated here — see `CHANGELOG.md` for dated history and
+`git log` for full commit-level detail.
 
 ## Open
 
