@@ -1,0 +1,444 @@
+<title>ai-page — architecture &amp; roadmap</title>
+<style>
+  :root {
+    --bg: #eef2f8;
+    --surface: #ffffff;
+    --surface-2: #e7edf6;
+    --line: #cbd6e6;
+    --text: #101a2e;
+    --muted: #55627a;
+    --accent: #0284c7;
+    --accent-dim: #dceefc;
+    --accent-ink: #04527e;
+    --p1: #b45309;
+    --p1-bg: #fef3e2;
+    --p2: #be123c;
+    --p2-bg: #fdecef;
+    --p3: #475569;
+    --p3-bg: #eef1f5;
+    --p4: #6d28d9;
+    --p4-bg: #f2ecfc;
+    --done: #15803d;
+    --done-bg: #e9f7ee;
+    --font-mono: ui-monospace, "Cascadia Code", "SF Mono", "JetBrains Mono", Consolas, monospace;
+    --font-body: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0b1120;
+    --surface: #101a2e;
+    --surface-2: #16223b;
+    --line: #23324c;
+    --text: #e6edf7;
+    --muted: #8b9cb8;
+    --accent: #38bdf8;
+    --accent-dim: #1c3a52;
+    --accent-ink: #bfe8ff;
+    --p1: #f5a623;
+    --p1-bg: #3a2a0f;
+    --p2: #fb7185;
+    --p2-bg: #3a1620;
+    --p3: #94a3b8;
+    --p3-bg: #1c2436;
+    --p4: #c4b5fd;
+    --p4-bg: #2a2140;
+    --done: #4ade80;
+    --done-bg: #103822;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1120;
+      --surface: #101a2e;
+      --surface-2: #16223b;
+      --line: #23324c;
+      --text: #e6edf7;
+      --muted: #8b9cb8;
+      --accent: #38bdf8;
+      --accent-dim: #1c3a52;
+      --accent-ink: #bfe8ff;
+      --p1: #f5a623;
+      --p1-bg: #3a2a0f;
+      --p2: #fb7185;
+      --p2-bg: #3a1620;
+      --p3: #94a3b8;
+      --p3-bg: #1c2436;
+      --p4: #c4b5fd;
+      --p4-bg: #2a2140;
+      --done: #4ade80;
+      --done-bg: #103822;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .page { max-width: 980px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ── Ambient header ─────────────────────────────────────────────
+     A fixed "night sky" band, deliberately independent of the page's
+     light/dark tokens: the real ai-page Cosmos view has no light mode
+     either, so this header stays dark in both themes rather than
+     washing out to a pale, starless gradient in light mode. ── */
+  .hero {
+    position: relative; overflow: hidden; border-radius: 0 0 20px 20px; margin: 0 -24px 56px;
+    background: #0b1120;
+    --hero-text: #f4f8ff;
+    --hero-muted: #b9cbe8;
+    --hero-chip-bg: #1c3a52;
+    --hero-chip-ink: #a8def6;
+  }
+  .hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .hero-inner {
+    position: relative; padding: 64px 24px 40px;
+    display: flex; flex-direction: column; gap: 10px;
+    background: linear-gradient(180deg, rgba(11,17,32,0.55) 0%, rgba(11,17,32,0.88) 100%);
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--hero-chip-ink);
+    background: var(--hero-chip-bg);
+    display: inline-flex;
+    width: fit-content;
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+  .hero h1 {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: clamp(28px, 4.2vw, 40px);
+    margin: 6px 0 0;
+    text-wrap: balance;
+    color: var(--hero-text);
+  }
+  .hero p { margin: 0; max-width: 62ch; color: var(--hero-muted); }
+
+  section { margin-top: 64px; }
+  .section-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; }
+  .section-head h2 {
+    font-family: var(--font-mono); font-size: 20px; font-weight: 600; margin: 0;
+  }
+  .section-head .count {
+    font-family: var(--font-mono); font-size: 12.5px; color: var(--muted);
+  }
+  .section-head::after {
+    content: ""; flex: 1; height: 1px; background: var(--line);
+  }
+
+  /* ── Architecture diagram ───────────────────────────────── */
+  .arch-shell {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 22px; overflow-x: auto;
+  }
+  .arch-shell-label {
+    font-family: var(--font-mono); font-size: 12px; color: var(--muted);
+    margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .arch-shell-label .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--p2); }
+  .arch-shell-label .dot:nth-child(3) { background: var(--p1); }
+  .arch-shell-label .dot:nth-child(4) { background: var(--done); }
+
+  .load-order { display: flex; flex-direction: column; gap: 0; min-width: 640px; }
+  .load-step { display: flex; align-items: center; gap: 14px; }
+  .load-num {
+    font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+    width: 20px; text-align: right; flex-shrink: 0;
+  }
+  .load-box {
+    font-family: var(--font-mono); font-size: 13px;
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px;
+    padding: 9px 14px; flex: 1;
+    display: flex; justify-content: space-between; gap: 12px; align-items: center;
+  }
+  .load-box .role { color: var(--muted); font-family: var(--font-body); font-size: 12.5px; }
+  .load-connector { width: 20px; flex-shrink: 0; display: flex; justify-content: center; }
+  .load-connector::before {
+    content: ""; width: 1px; height: 20px; background: var(--line);
+  }
+
+  .view-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    margin-left: 34px; margin-top: 0;
+  }
+  .view-box {
+    font-family: var(--font-mono); font-size: 12.5px;
+    background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent-ink);
+    border-radius: 7px; padding: 10px 12px;
+  }
+  .view-box .iface {
+    display: block; margin-top: 6px; font-size: 10.5px; color: var(--muted); font-family: var(--font-body);
+  }
+
+  .flow-note {
+    margin-top: 22px; padding-top: 18px; border-top: 1px dashed var(--line);
+    font-size: 13.5px; color: var(--muted);
+  }
+  .flow-note code {
+    font-family: var(--font-mono); font-size: 0.92em; color: var(--text);
+    background: var(--surface-2); padding: 1px 5px; border-radius: 4px;
+  }
+  .flow-chain {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 4px;
+    font-family: var(--font-mono); font-size: 12.5px;
+  }
+  .flow-chain .arrow { color: var(--muted); }
+  .flow-chain .node {
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px;
+    padding: 5px 10px; color: var(--text);
+  }
+  .flow-chain .node.model { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-dim); }
+
+  .panel-note {
+    margin-top: 18px; display: flex; gap: 12px; align-items: flex-start;
+    font-size: 13.5px; color: var(--muted);
+  }
+  .panel-note .badge {
+    font-family: var(--font-mono); font-size: 11px; flex-shrink: 0;
+    background: var(--p3-bg); color: var(--p3); border-radius: 5px; padding: 3px 8px; margin-top: 1px;
+  }
+
+  /* ── Roadmap, as a literal shelf: each open item is a book, spine-out,
+     titled and colored by priority. Nothing is read here beyond a title —
+     the detail lives in ROADMAP.md, which this deliberately doesn't repeat. ── */
+  .shelf-wrap { overflow-x: auto; padding-bottom: 4px; }
+  .shelf { display: flex; align-items: flex-end; gap: 14px; min-width: min-content; padding: 4px 4px 0; }
+  .book {
+    --spine: var(--p3);
+    position: relative;
+    width: 132px; height: 168px; flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 5px solid var(--spine);
+    border-radius: 3px 3px 5px 5px;
+    box-shadow: 3px 0 6px -3px rgba(0,0,0,0.25);
+    padding: 14px 12px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: transform 0.15s ease;
+  }
+  .book:hover { transform: translateY(-4px); }
+  .book .rm-num {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--spine);
+  }
+  .book h3 {
+    margin: 0; font-size: 14.5px; line-height: 1.35; font-weight: 650;
+    text-wrap: balance;
+  }
+  .book .rm-tag {
+    margin-top: auto; align-self: flex-start;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+    text-transform: uppercase; padding: 2px 8px; border-radius: 20px;
+    background: var(--tag-bg); color: var(--spine);
+  }
+  .book.p1 { --spine: var(--p1); --tag-bg: var(--p1-bg); }
+  .book.p2 { --spine: var(--p2); --tag-bg: var(--p2-bg); }
+  .book.p3 { --spine: var(--p3); --tag-bg: var(--p3-bg); }
+
+  .shelf-ledge {
+    height: 14px; margin: 0 4px;
+    background: linear-gradient(180deg, var(--surface-2) 0%, var(--bg) 100%);
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 6px 14px -6px rgba(0,0,0,0.35);
+  }
+  .shelf-hint {
+    margin-top: 10px; font-size: 12.5px; color: var(--muted); text-align: center;
+  }
+  .shelf-hint code {
+    font-family: var(--font-mono); font-size: 0.92em; color: var(--text);
+    background: var(--surface-2); padding: 1px 5px; border-radius: 4px;
+  }
+
+  .ruled-out {
+    margin-top: 28px; padding: 16px 20px; border-radius: 10px;
+    background: var(--surface-2); border: 1px dashed var(--line);
+    opacity: 0.85;
+  }
+  .ruled-out h3 {
+    margin: 0 0 6px; font-size: 13px; font-family: var(--font-mono); color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .ruled-out p { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .ruled-out code { font-family: var(--font-mono); font-size: 0.9em; background: var(--surface); padding: 1px 5px; border-radius: 4px; }
+
+  footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; font-family: var(--font-mono); }
+
+  @media (max-width: 720px) {
+    .view-row { grid-template-columns: repeat(2, 1fr); margin-left: 0; }
+    .load-order { min-width: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero canvas { display: none; }
+  }
+</style>
+
+<div class="hero">
+  <canvas id="stars"></canvas>
+  <div class="hero-inner">
+    <span class="eyebrow">ai-page · internal map</span>
+    <h1>Architecture &amp; roadmap</h1>
+    <p>How the curriculum browser is wired together today, and the four open findings from the latest review — in priority order.</p>
+  </div>
+</div>
+
+<div class="page">
+
+  <section aria-labelledby="arch-h">
+    <div class="section-head"><h2 id="arch-h">Architecture</h2><span class="count">9 files</span></div>
+
+    <div class="arch-shell">
+      <div class="arch-shell-label">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        index.html — CSS + markup shell, no view logic
+      </div>
+
+      <div class="load-order">
+        <div class="load-step">
+          <span class="load-num">01</span>
+          <div class="load-box">course-curriculum.js <span class="role">generated from course-curriculum.md</span></div>
+        </div>
+        <div class="load-connector"></div>
+        <div class="load-step">
+          <span class="load-num">02</span>
+          <div class="load-box">palette.js <span class="role">hslToRgb, generatePalette</span></div>
+        </div>
+        <div class="load-connector"></div>
+        <div class="load-step">
+          <span class="load-num">03</span>
+          <div class="load-box">parser.js <span class="role">parseCurriculum, validateCurriculum, escapeHtml</span></div>
+        </div>
+        <div class="load-connector"></div>
+        <div class="load-step">
+          <span class="load-num">04</span>
+          <div class="load-box">panel.js <span class="role">Panel singleton — open / close / onResize</span></div>
+        </div>
+        <div class="load-connector"></div>
+        <div class="load-step">
+          <span class="load-num">05</span>
+          <div class="load-box" style="background:transparent;border-style:dashed;color:var(--muted);">four view modules, loaded in parallel order below</div>
+        </div>
+
+        <div class="view-row">
+          <div class="view-box">CosmosView<span class="iface">activate · deactivate · resize</span></div>
+          <div class="view-box">MindmapView<span class="iface">activate · deactivate · resize</span></div>
+          <div class="view-box">CardsView<span class="iface">activate · deactivate · resize</span></div>
+          <div class="view-box">MissionControlView<span class="iface">activate · deactivate · resize</span></div>
+        </div>
+
+        <div class="load-connector" style="margin-left:34px;"></div>
+        <div class="load-step">
+          <span class="load-num">09</span>
+          <div class="load-box">app.js <span class="role">bootstrap, switchView, keyboard nav</span></div>
+        </div>
+      </div>
+
+      <div class="flow-note">
+        <strong style="color:var(--text)">One parse, four views.</strong> The Markdown is parsed exactly once, at bootstrap:
+        <div class="flow-chain">
+          <span class="node">course-curriculum.md</span><span class="arrow">→</span>
+          <span class="node">build-curriculum.js</span><span class="arrow">→</span>
+          <span class="node">course-curriculum.js</span><span class="arrow">→</span>
+          <span class="node model">parseCurriculum()</span><span class="arrow">→</span>
+          <span class="node model">curriculumModel</span>
+        </div>
+        <code>curriculumModel</code> and <code>palette</code> are then handed to every view's <code>activate(model, palette)</code> — no view re-parses the Markdown itself.
+        <div class="panel-note">
+          <span class="badge">Panel</span>
+          <span>Owns the shared side-panel. Doesn't reference any view's internals — a view that needs to re-fit itself when the panel opens or closes registers a callback via <code>Panel.onResize(fn)</code> instead, so <code>CosmosView</code> and <code>MindmapView</code> can be swapped or removed without touching <code>panel.js</code>.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="roadmap-h">
+    <div class="section-head"><h2 id="roadmap-h">Roadmap</h2><span class="count">3 open</span></div>
+
+    <div class="shelf-wrap">
+      <div class="shelf">
+        <div class="book p1" title="If three.js or vis-network fail to load, CosmosView/MindmapView throw an uncaught ReferenceError with no user-facing message.">
+          <span class="rm-num">01</span>
+          <h3>No fallback if a CDN script fails to load</h3>
+          <span class="rm-tag">Edge case</span>
+        </div>
+        <div class="book p2" title="input[type=&quot;search&quot;] cancel-button/decoration rules in index.html target a selector that can never match, since #search is type=&quot;text&quot;.">
+          <span class="rm-num">02</span>
+          <h3>Dead CSS in index.html</h3>
+          <span class="rm-tag">Cleanup</span>
+        </div>
+        <div class="book p3" title="The Cosmos star-twinkle effect runs a 1,500-iteration Math.sin() loop every animation frame — likely fine on desktop, unverified on low-end mobile.">
+          <span class="rm-num">03</span>
+          <h3>Cosmos twinkle-loop performance</h3>
+          <span class="rm-tag">Needs profiling</span>
+        </div>
+      </div>
+      <div class="shelf-ledge"></div>
+      <p class="shelf-hint">Titles only — hover a spine for the one-line summary; full detail lives in <code>ROADMAP.md</code>.</p>
+    </div>
+
+    <div class="ruled-out">
+      <h3>Checked &amp; ruled out</h3>
+      <p>Knowledge Web's tooltip passes unescaped curriculum text into vis-network, but the pinned vis-network 10.1.0 build uses <code>.innerText</code> (verified against the actual bundle) — a safe, text-only sink. Adding <code>escapeHtml()</code> there would be a regression: <code>innerText</code> doesn't decode entities, so it would show a literal <code>&amp;amp;</code> instead of <code>&amp;</code>.</p>
+    </div>
+  </section>
+
+  <footer>ai-page · generated for internal reference · not part of the deployed site</footer>
+</div>
+
+<script>
+  (function () {
+    var canvas = document.getElementById('stars');
+    if (!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var ctx = canvas.getContext('2d');
+    var stars = [];
+    var raf;
+
+    function resize() {
+      var rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * devicePixelRatio;
+      canvas.height = rect.height * devicePixelRatio;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      var count = Math.round((rect.width * rect.height) / 9000);
+      stars = Array.from({ length: count }, function () {
+        return {
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: (Math.random() * 1.2 + 0.3) * devicePixelRatio,
+          phase: Math.random() * Math.PI * 2,
+          speed: 0.01 + Math.random() * 0.02
+        };
+      });
+    }
+
+    var t = 0;
+    function draw() {
+      t++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (var i = 0; i < stars.length; i++) {
+        var s = stars[i];
+        var b = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * s.speed + s.phase));
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(190, 220, 255,' + b + ')';
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    draw();
+  })();
+</script>
