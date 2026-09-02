@@ -12,22 +12,22 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 
 | Topic | Domain → Subject | Status | Started |
 |---|---|---|---|
-| [[#Python Basics]] | Prerequisites → Programming Basics | 🟡 In progress | 2026-08-23 |
+| [[#Python Basics]] | Prerequisites → Programming Basics | ⬜ Not started | — |
 
 ---
 
 ## Python Basics
 **Curriculum:** Prerequisites → Programming Basics → *Python Basics* (`S1-T1`)
-**Status:** 🟡 In progress
+**Status:** ⬜ Not started
 **Background going in:** zero Python; strong in Pascal/C/C++ and PowerShell (primary scripting language).
 
 ### Progress
-- [x] Environment: REPL, running scripts (`python3 script.py`)
-- [x] Indentation-based blocks (vs C/C++ braces, no semicolons)
-- [x] Variables & dynamic typing (no declarations, name can rebind to any type)
-- [x] Core data structures: `list`, `tuple`, `dict`, `set`
-- [x] Loops: `for`/`while`, iterating collections directly (not index-based)
-- [x] Functions: `def`, default args, functions as first-class values
+- [ ] Environment: REPL, running scripts (`python3 script.py`)
+- [ ] Indentation-based blocks (vs C/C++ braces, no semicolons)
+- [ ] Variables & dynamic typing (no declarations, name can rebind to any type)
+- [ ] Core data structures: `list`, `tuple`, `dict`, `set`
+- [ ] Loops: `for`/`while`, iterating collections directly (not index-based)
+- [ ] Functions: `def`, default args, functions as first-class values
 - [ ] OOP: classes, `self`, inheritance, dunder methods
 - [ ] Functional style: lambdas, comprehensions, `map`/`filter`
 - [ ] Hands-on exercise
@@ -42,4 +42,4 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 - Functions are values (closer to PowerShell scriptblocks than C function pointers) — this is the on-ramp to the functional-programming half of this topic.
 
 ### Next up
-OOP (fast, since C++ OOP concepts already transfer — just new syntax) or functional style (genuinely new territory) — next session.
+Start from the top: environment + syntax basics.
