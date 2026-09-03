@@ -12,17 +12,18 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 
 | Topic | Domain → Subject | Status | Started |
 |---|---|---|---|
-| [[#Python Basics]] | Prerequisites → Programming Basics | ⬜ Not started | — |
+| [[#Python Basics]] | Prerequisites → Programming Basics | 🟡 In progress | 2026-09-03 |
 
 ---
 
 ## Python Basics
 **Curriculum:** Prerequisites → Programming Basics → *Python Basics* (`S1-T1`)
-**Status:** ⬜ Not started
+**Status:** 🟡 In progress
 **Background going in:** zero Python; strong in Pascal/C/C++ and PowerShell (primary scripting language).
+**Setup:** Cursor editor on Windows, project at `M:\GIT\AI-Learning\python`, running via `python hello.py` in the integrated terminal.
 
 ### Progress
-- [ ] Environment: REPL, running scripts (`python3 script.py`)
+- [x] Environment: REPL, running scripts (`python hello.py` in Cursor's terminal)
 - [ ] Indentation-based blocks (vs C/C++ braces, no semicolons)
 - [ ] Variables & dynamic typing (no declarations, name can rebind to any type)
 - [ ] Core data structures: `list`, `tuple`, `dict`, `set`
@@ -42,4 +43,4 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 - Functions are values (closer to PowerShell scriptblocks than C function pointers) — this is the on-ramp to the functional-programming half of this topic.
 
 ### Next up
-Start from the top: environment + syntax basics.
+Indentation-based blocks (Step 2).
