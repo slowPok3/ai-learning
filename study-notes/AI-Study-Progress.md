@@ -24,7 +24,7 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 
 ### Progress
 - [x] Environment: REPL, running scripts (`python hello.py` in Cursor's terminal)
-- [ ] Indentation-based blocks (vs C/C++ braces, no semicolons)
+- [x] Indentation-based blocks (vs C/C++ braces, no semicolons)
 - [ ] Variables & dynamic typing (no declarations, name can rebind to any type)
 - [ ] Core data structures: `list`, `tuple`, `dict`, `set`
 - [ ] Loops: `for`/`while`, iterating collections directly (not index-based)
@@ -43,4 +43,4 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 - Functions are values (closer to PowerShell scriptblocks than C function pointers) — this is the on-ramp to the functional-programming half of this topic.
 
 ### Next up
-Indentation-based blocks (Step 2).
+Variables & dynamic typing (Step 3).
