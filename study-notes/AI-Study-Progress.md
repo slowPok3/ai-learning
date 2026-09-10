@@ -26,7 +26,7 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 - [x] Environment: REPL, running scripts (`python hello.py` in Cursor's terminal)
 - [x] Indentation-based blocks (vs C/C++ braces, no semicolons)
 - [x] Variables & dynamic typing (no declarations, name can rebind to any type)
-- [ ] Core data structures: `list`, `tuple`, `dict`, `set`
+- [x] Core data structures: `list`, `tuple`, `dict`, `set`
 - [ ] Loops: `for`/`while`, iterating collections directly (not index-based)
 - [ ] Functions: `def`, default args, functions as first-class values
 - [ ] OOP: classes, `self`, inheritance, dunder methods
@@ -43,4 +43,4 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 - Functions are values (closer to PowerShell scriptblocks than C function pointers) — this is the on-ramp to the functional-programming half of this topic.
 
 ### Next up
-Core data structures: list, tuple, dict, set (Step 4).
+Loops: for/while, iterating collections directly (Step 5).
