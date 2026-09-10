@@ -35,12 +35,44 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 
 ### Notes
 - Coming from PowerShell/C++, the two real adjustments are: indentation *is* the block syntax, and dynamic typing (no `int`/`string` declarations).
-- Rough equivalence table:
-  - `list` ≈ resizable array / PowerShell `@()`
-  - `dict` ≈ PowerShell hashtable `@{}` / C++ `std::map`
-  - `tuple` ≈ immutable fixed-size list (no direct C/PowerShell equivalent)
-  - `set` ≈ unique unordered values (no direct C/PowerShell equivalent)
 - Functions are values (closer to PowerShell scriptblocks than C function pointers) — this is the on-ramp to the functional-programming half of this topic.
+- No `++`/`--` operators — always `x = x + 1`.
+
+### Cheat sheet: data structures
+
+**`list`** — resizable, ordered, mutable.
+```python
+users = ["alice", "bob"]
+users.append("carol")
+```
+≈ PowerShell `@()` array.
+
+**`dict`** — key/value pairs, mutable.
+```python
+roles = {"alice": "admin"}
+roles["bob"] = "read-only"
+```
+≈ PowerShell hashtable `@{}` / C++ `std::map`.
+
+**`tuple`** — ordered, **fixed-length, immutable**.
+```python
+point = (3, 4)          # or just 3, 4 — the comma makes it a tuple, not the parens
+x, y = point             # unpacking
+```
+- Immutable → hashable → can be used as a dict key (a `list` can't).
+- Signals "exactly N related values" (a coordinate, a multi-value return), not just "a locked list."
+- No native PowerShell equivalent — closest is .NET's `[System.Tuple]::Create(3, 4)` / PS7 `[ValueTuple]`; PowerShell scripts normally just return an array and rely on convention instead of enforced immutability.
+
+**`set`** — unordered, **unique values only**, fast membership testing.
+```python
+perms = {"read", "write", "read"}   # dup silently dropped
+"read" in perms                      # O(1) lookup
+a | b   # union
+a & b   # intersection
+a - b   # difference
+```
+- Gotcha: `{}` alone is an empty **dict**, not an empty set — empty set is `set()`.
+- No native PowerShell equivalent — `Select-Object -Unique` is a one-off dedupe operation, not a persistent type; the real equivalent is .NET's `[System.Collections.Generic.HashSet[object]]`.
 
 ### Next up
 Loops: for/while, iterating collections directly (Step 5).
