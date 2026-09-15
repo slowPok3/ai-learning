@@ -12,13 +12,43 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 
 | Topic | Domain → Subject | Status | Started |
 |---|---|---|---|
-| [[#Python Basics]] | Prerequisites → Programming Basics | 🟡 In progress | 2026-09-03 |
+| [[#Attention]] | Deep Learning → Attention | 🟡 In progress | 2026-09-15 |
+| [[#Transformers]] | Deep Learning → Transformers | ⬜ Not started | — |
+| [[#Python Basics]] | Prerequisites → Programming Basics | ⏸️ On hold | 2026-09-03 |
+
+---
+
+## Attention
+**Curriculum:** Deep Learning → Attention (`S54`)
+**Status:** 🟡 In progress
+**Approach:** learning Transformers directly, picking up Python as needed along the way (rather than finishing Python Basics first). `Google Transformer/TransformerSimulator.py` in this repo is a ready-made hands-on resource (PyTorch self-attention demo) — using it as the anchor once we hit Query/Key/Value mechanics.
+
+### Progress
+- [ ] Attention intuition (`S54-T2`): why attention exists, what problem it solves
+- [ ] Query, key, value (`S54-T1`): the search-engine analogy, then the actual mechanics via `TransformerSimulator.py`
+
+### Notes
+_(added as we go)_
+
+### Next up
+Attention intuition — no code yet, just the "why."
+
+---
+
+## Transformers
+**Curriculum:** Deep Learning → Transformers (`S55`)
+**Status:** ⬜ Not started
+
+### Progress
+- [ ] Self-attention (`S55-T1`)
+- [ ] Multi-head attention (`S55-T2`)
+- [ ] Positional encoding (`S55-T3`)
 
 ---
 
 ## Python Basics
 **Curriculum:** Prerequisites → Programming Basics → *Python Basics* (`S1-T1`)
-**Status:** 🟡 In progress
+**Status:** ⏸️ On hold — picking up remaining items opportunistically while working through Transformers instead of finishing linearly.
 **Background going in:** zero Python; strong in Pascal/C/C++ and PowerShell (primary scripting language).
 **Setup:** Cursor editor on Windows, project at `M:\GIT\AI-Learning\python`, running via `python hello.py` in the integrated terminal.
 
