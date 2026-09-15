@@ -24,11 +24,12 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 **Approach:** learning Transformers directly, picking up Python as needed along the way (rather than finishing Python Basics first). `Google Transformer/TransformerSimulator.py` in this repo is a ready-made hands-on resource (PyTorch self-attention demo) — using it as the anchor once we hit Query/Key/Value mechanics.
 
 ### Progress
-- [ ] Attention intuition (`S54-T2`): why attention exists, what problem it solves
+- [x] Attention intuition (`S54-T2`): why attention exists, what problem it solves
 - [ ] Query, key, value (`S54-T1`): the search-engine analogy, then the actual mechanics via `TransformerSimulator.py`
 
 ### Notes
-_(added as we go)_
+- Core problem attention solves: RNNs compress the whole sequence into one fixed-size memory vector (lossy over long sequences) and process sequentially (no GPU parallelism). Attention lets every token look directly at every other token, all at once, weighted by relevance.
+- Canonical example: "it" resolving to different nouns depending on one other word elsewhere in the sentence ("...because it is too big" vs "...too small") — needs direct, weighted access to the whole sentence, not a compressed summary.
 
 ### Next up
 Attention intuition — no code yet, just the "why."
