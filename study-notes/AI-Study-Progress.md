@@ -13,7 +13,7 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 | Topic | Domain → Subject | Status | Started |
 |---|---|---|---|
 | [[#Attention]] | Deep Learning → Attention | 🟡 In progress | 2026-09-15 |
-| [[#Transformers]] | Deep Learning → Transformers | ⬜ Not started | — |
+| [[#Transformers]] | Deep Learning → Transformers | 🟡 In progress | 2026-09-15 |
 | [[#Python Basics]] | Prerequisites → Programming Basics | ⏸️ On hold | 2026-09-03 |
 
 ---
@@ -25,23 +25,27 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 
 ### Progress
 - [x] Attention intuition (`S54-T2`): why attention exists, what problem it solves
-- [ ] Query, key, value (`S54-T1`): the search-engine analogy, then the actual mechanics via `TransformerSimulator.py`
+- [x] Query, key, value (`S54-T1`): search-engine analogy (Query=what you want, Key=what a page is about, Value=the content) + ran `TransformerSimulator.py`
 
 ### Notes
 - Core problem attention solves: RNNs compress the whole sequence into one fixed-size memory vector (lossy over long sequences) and process sequentially (no GPU parallelism). Attention lets every token look directly at every other token, all at once, weighted by relevance.
 - Canonical example: "it" resolving to different nouns depending on one other word elsewhere in the sentence ("...because it is too big" vs "...too small") — needs direct, weighted access to the whole sentence, not a compressed summary.
+- The 4 mechanical steps: **Score** (Q·K per pair) → **Scale** (÷√d_k, numerical stability) → **Softmax** (rows become percentages summing to 100%) → **Weighted sum** (blend Values by those percentages) = new context-aware vector per word.
+- Ran `Google Transformer/TransformerSimulator.py` (3-word toy sentence "AI is awesome", 4-dim embeddings) and traced real numbers through all 4 steps.
+- Caveat noticed in the toy example: it uses `Q = K = words`, so the raw score matrix comes out symmetric (score[i][j] == score[j][i]). That's an artifact of this simplification — in a real transformer, Q and K are separate learned projections, so attention is generally **asymmetric** (A can attend to B without B attending equally to A).
+- Env note: got a `Failed to initialize NumPy` warning (harmless here) — `pip install numpy` recommended since most of the Python ML stack assumes it's present.
 
 ### Next up
-Attention intuition — no code yet, just the "why."
+Multi-head attention (`S55-T2`) — why one attention pass isn't enough.
 
 ---
 
 ## Transformers
 **Curriculum:** Deep Learning → Transformers (`S55`)
-**Status:** ⬜ Not started
+**Status:** 🟡 In progress
 
 ### Progress
-- [ ] Self-attention (`S55-T1`)
+- [x] Self-attention (`S55-T1`) — covered via the `TransformerSimulator.py` walkthrough under [[#Attention]] (same 4-step mechanism, applied to a sequence)
 - [ ] Multi-head attention (`S55-T2`)
 - [ ] Positional encoding (`S55-T3`)
 
