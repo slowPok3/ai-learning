@@ -12,40 +12,43 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 
 | Topic | Domain → Subject | Status | Started |
 |---|---|---|---|
-| [[#Attention]] | Deep Learning → Attention | 🟡 In progress | 2026-09-15 |
-| [[#Transformers]] | Deep Learning → Transformers | 🟡 In progress | 2026-09-15 |
+| [[#Attention]] | Deep Learning → Attention | 🟡 In progress (restarted, slower pace) | 2026-09-16 |
+| [[#Transformers]] | Deep Learning → Transformers | ⬜ Not started | — |
 | [[#Python Basics]] | Prerequisites → Programming Basics | ⏸️ On hold | 2026-09-03 |
 
 ---
 
 ## Attention
 **Curriculum:** Deep Learning → Attention (`S54`)
-**Status:** 🟡 In progress
-**Approach:** learning Transformers directly, picking up Python as needed along the way (rather than finishing Python Basics first). `Google Transformer/TransformerSimulator.py` in this repo is a ready-made hands-on resource (PyTorch self-attention demo) — using it as the anchor once we hit Query/Key/Value mechanics.
+**Status:** 🟡 In progress (restarted 2026-09-16 — first pass moved too fast)
+**Approach:** first pass went straight to a finished simulator script and jumped ahead to multi-head before the fundamentals (dot product, softmax) were solid by hand. Restarting: build a transformer from scratch, one small hand-computed piece at a time, writing new code incrementally instead of being handed a finished file.
 
 ### Progress
 - [x] Attention intuition (`S54-T2`): why attention exists, what problem it solves
-- [x] Query, key, value (`S54-T1`): search-engine analogy (Query=what you want, Key=what a page is about, Value=the content) + ran `TransformerSimulator.py`
+- [ ] Query, key, value (`S54-T1`) — redo from scratch, slower, with a tiny 2D hand-computed example first
 
-### Notes
+### Notes (kept from first pass — still valid reference)
 - Core problem attention solves: RNNs compress the whole sequence into one fixed-size memory vector (lossy over long sequences) and process sequentially (no GPU parallelism). Attention lets every token look directly at every other token, all at once, weighted by relevance.
 - Canonical example: "it" resolving to different nouns depending on one other word elsewhere in the sentence ("...because it is too big" vs "...too small") — needs direct, weighted access to the whole sentence, not a compressed summary.
 - The 4 mechanical steps: **Score** (Q·K per pair) → **Scale** (÷√d_k, numerical stability) → **Softmax** (rows become percentages summing to 100%) → **Weighted sum** (blend Values by those percentages) = new context-aware vector per word.
-- Ran `Google Transformer/TransformerSimulator.py` (3-word toy sentence "AI is awesome", 4-dim embeddings) and traced real numbers through all 4 steps.
-- Caveat noticed in the toy example: it uses `Q = K = words`, so the raw score matrix comes out symmetric (score[i][j] == score[j][i]). That's an artifact of this simplification — in a real transformer, Q and K are separate learned projections, so attention is generally **asymmetric** (A can attend to B without B attending equally to A).
+- **Dot product**: multiply corresponding components, sum them — measures how "aligned" two vectors are (big positive = similar direction, zero = unrelated, negative = opposite). `QKᵀ` is just "do that for every pair of words at once" via matrix multiplication.
+- **Softmax**: `e^x_i / sum(e^x_j)` — turns arbitrary numbers into a probability row (positive, sums to 1). Exponentiating (rather than just dividing by the sum) handles negative scores and *exaggerates* the gap between them, so the most relevant word(s) dominate rather than attention being spread near-evenly.
+- Ran `Google Transformer/TransformerSimulator.py` (3-word toy sentence, 4-dim embeddings) and traced numbers through all 4 steps by hand — this worked, but multi-head was introduced too soon after.
+- Caveat noticed in the toy example: it uses `Q = K = words`, so the raw score matrix comes out symmetric. Artifact of the simplification — in a real transformer, Q and K are separate learned projections, so attention is generally **asymmetric**.
+- Also built `Google Transformer/TransformerSimulator_MultiHead.py` (2-head version) — code runs correctly, but revisit once single-head is solid by hand, not just by reading a script's output.
 - Env note: got a `Failed to initialize NumPy` warning (harmless here) — `pip install numpy` recommended since most of the Python ML stack assumes it's present.
 
 ### Next up
-Multi-head attention (`S55-T2`) — why one attention pass isn't enough.
+Rebuild from scratch, starting even before Q/K/V: what a word embedding actually is, then a hand-computed dot product on a tiny 2D example.
 
 ---
 
 ## Transformers
 **Curriculum:** Deep Learning → Transformers (`S55`)
-**Status:** 🟡 In progress
+**Status:** ⬜ Not started — deferred until [[#Attention]] fundamentals are solid again.
 
 ### Progress
-- [x] Self-attention (`S55-T1`) — covered via the `TransformerSimulator.py` walkthrough under [[#Attention]] (same 4-step mechanism, applied to a sequence)
+- [ ] Self-attention (`S55-T1`)
 - [ ] Multi-head attention (`S55-T2`)
 - [ ] Positional encoding (`S55-T3`)
 
