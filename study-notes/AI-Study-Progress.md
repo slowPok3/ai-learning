@@ -38,8 +38,19 @@ One section per topic below, added as it's studied. Status legend: 🟡 in progr
 - Also built `Google Transformer/TransformerSimulator_MultiHead.py` (2-head version) — code runs correctly, but revisit once single-head is solid by hand, not just by reading a script's output.
 - Env note: got a `Failed to initialize NumPy` warning (harmless here) — `pip install numpy` recommended since most of the Python ML stack assumes it's present.
 
+### Diagrams
+Hand-verified dot product visualized as "shadow"/projection length, all three cases using `ai = [1, 0]` as the reference vector:
+- ![Aligned (45°, dot = 1)](diagrams/dot-product-aligned.png)
+- ![Perpendicular (90°, dot = 0)](diagrams/dot-product-perpendicular.png)
+- ![Opposite (180°, dot = -1)](diagrams/dot-product-opposite.png)
+
+Key takeaways carried into the next topic (softmax):
+- Dot product = magnitude-weighted cosine similarity — big magnitude can inflate scores independent of actual "relevance," which is why attention divides by `√d_k` (Scale step) to keep softmax's input range stable as embedding size grows.
+- Dot product is symmetric (`A·B = B·A`), but attention scores aren't, because `Q` and `K` are separate learned projections.
+- `QKᵀ` is just every pairwise dot product computed at once via matrix multiplication.
+
 ### Next up
-Rebuild from scratch, starting even before Q/K/V: what a word embedding actually is, then a hand-computed dot product on a tiny 2D example.
+Softmax — hand-compute it on the small score table already produced, then move to Query/Key/Value proper.
 
 ---
 
